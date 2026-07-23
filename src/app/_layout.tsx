@@ -1,18 +1,47 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Redirect, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import type { PropsWithChildren } from 'react';
+import { ActivityIndicator, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { ThemedView } from '@/components/themed-view';
+import { AuthProvider, useAuth } from '@/context/auth-context';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+function AuthGate({ children }: PropsWithChildren) {
+  const { status } = useAuth();
+  const pathname = usePathname();
+
+  if (status === 'loading') {
+    return (
+      <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </ThemedView>
+    );
+  }
+
+  if (status === 'signedOut' && pathname !== '/login') {
+    return <Redirect href="/login" />;
+  }
+
+  if (status === 'signedIn' && pathname === '/login') {
+    return <Redirect href="/" />;
+  }
+
+  return <>{children}</>;
+}
+
+export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
-      <AppTabs />
+      <AuthProvider>
+        <AuthGate>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AuthGate>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
