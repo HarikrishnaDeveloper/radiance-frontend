@@ -46,7 +46,7 @@ export default function ResultsScreen() {
           {results.questions.map((question, i) => (
             <ThemedView key={question.id} type="backgroundElement" style={styles.questionCard}>
               <ThemedText themeColor="textSecondary" type="small">
-                Q{i + 1} · {question.category.name}
+                Q{i + 1} · {question.category.name}{question.questionPaper ? ` · ${question.questionPaper.year}` : ''}
               </ThemedText>
               <ThemedText style={styles.questionText}>{question.text}</ThemedText>
 

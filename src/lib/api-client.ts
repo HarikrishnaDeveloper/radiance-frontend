@@ -3,11 +3,11 @@ import type {
   AttemptHistoryItem,
   AttemptMode,
   AttemptResultsResponse,
+  AuthResponse,
   AuthUser,
   CategorySummary,
   CompleteAttemptResponse,
   DashboardResponse,
-  LoginResponse,
   PaperSummary,
   SubmitAnswerResponse,
 } from '@/types/api';
@@ -50,9 +50,21 @@ async function request<T>(
 
 export const api = {
   login: (username: string, password: string) =>
-    request<LoginResponse>('/api/auth/login', { method: 'POST', body: { username, password } }),
+    request<AuthResponse>('/api/auth/login', { method: 'POST', body: { username, password } }),
 
-  logout: (token: string) => request<{ ok: true }>('/api/auth/logout', { method: 'POST', token }),
+  requestOtp: (phone: string) => request<{ ok: true }>('/api/auth/otp/send', { method: 'POST', body: { phone } }),
+
+  verifyOtp: (phone: string, code: string) =>
+    request<AuthResponse>('/api/auth/otp/verify', { method: 'POST', body: { phone, code } }),
+
+  refresh: (refreshToken: string) =>
+    request<{ accessToken: string; refreshToken: string }>('/api/auth/refresh', {
+      method: 'POST',
+      body: { refreshToken },
+    }),
+
+  logout: (refreshToken: string) =>
+    request<{ ok: true }>('/api/auth/logout', { method: 'POST', body: { refreshToken } }),
 
   me: (token: string) => request<AuthUser>('/api/auth/me', { token }),
 

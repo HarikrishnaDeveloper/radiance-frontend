@@ -2,12 +2,14 @@ export type AttemptMode = 'FULL_PAPER' | 'CATEGORY_PRACTICE';
 
 export type AuthUser = {
   id: string;
-  username: string;
+  username: string | null;
   name: string | null;
+  phone?: string | null;
 };
 
-export type LoginResponse = {
-  token: string;
+export type AuthResponse = {
+  accessToken: string;
+  refreshToken: string;
   user: AuthUser;
 };
 
@@ -61,8 +63,10 @@ export type SafeOption = {
 export type SafeQuestion = {
   id: number;
   text: string;
+  questionImage?: string | null;
   categoryId: number;
   category: { id: number; name: string };
+  questionPaper?: { year: number } | null;
   options: SafeOption[];
 };
 
@@ -101,8 +105,10 @@ export type ResultOption = SafeOption & { isCorrect: boolean };
 export type ResultQuestion = {
   id: number;
   text: string;
+  questionImage?: string | null;
   explanation: string | null;
   category: { id: number; name: string };
+  questionPaper?: { year: number } | null;
   options: ResultOption[];
   selectedOptionId: number | null;
   isCorrect: boolean;

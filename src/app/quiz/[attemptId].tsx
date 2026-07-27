@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -135,9 +135,18 @@ export default function QuizScreen() {
         ) : (
           <>
             <ThemedText themeColor="textSecondary" type="small">
-              {currentQuestion.category.name}
+              {currentQuestion.category.name}{currentQuestion.questionPaper ? ` • ${currentQuestion.questionPaper.year}` : ''}
             </ThemedText>
-            <ThemedText style={styles.questionText}>{currentQuestion.text}</ThemedText>
+            <ScrollView style={styles.questionScroll} showsVerticalScrollIndicator={false}>
+              <ThemedText style={styles.questionText}>{currentQuestion.text}</ThemedText>
+              {currentQuestion.questionImage && (
+                <Image
+                  source={{ uri: `${process.env.EXPO_PUBLIC_API_URL}${currentQuestion.questionImage}` }}
+                  style={styles.questionImage}
+                  resizeMode="contain"
+                />
+              )}
+            </ScrollView>
 
             <ThemedView style={styles.options}>
               {currentQuestion.options.map((option) => {
@@ -213,9 +222,20 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.four,
     gap: Spacing.three,
   },
+  questionScroll: {
+    maxHeight: 280,
+  },
   questionText: {
     fontSize: 20,
     lineHeight: 28,
+    marginBottom: 8,
+  },
+  questionImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 8,
   },
   options: {
     gap: Spacing.two,

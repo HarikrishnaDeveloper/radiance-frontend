@@ -3,9 +3,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { PropsWithChildren } from 'react';
 
 import { api, ApiError } from '@/lib/api-client';
-import type { AuthUser } from '@/types/api';
+import type { AuthResponse, AuthUser } from '@/types/api';
 
-const TOKEN_KEY = 'radiance_auth_token';
+const ACCESS_TOKEN_KEY = 'radiance_access_token';
+const REFRESH_TOKEN_KEY = 'radiance_refresh_token';
 
 type AuthStatus = 'loading' | 'signedIn' | 'signedOut';
 
@@ -14,56 +15,134 @@ type AuthContextValue = {
   token: string | null;
   user: AuthUser | null;
   login: (username: string, password: string) => Promise<void>;
+  requestOtp: (phone: string) => Promise<void>;
+  verifyOtp: (phone: string, code: string) => Promise<AuthUser>;
+  completeProfile: (name: string) => void;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function persistSession(result: AuthResponse) {
+  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, result.accessToken);
+  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, result.refreshToken);
+}
+
+async function clearSession() {
+  try {
+    await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+  } catch {
+    // Secure storage is unavailable on this platform/build — nothing to clear.
+  }
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [token, setToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     (async () => {
-      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-      if (!storedToken) {
+      let storedAccessToken: string | null = null;
+      let storedRefreshToken: string | null = null;
+      try {
+        storedAccessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+        storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      } catch {
+        // Secure storage is unavailable on this platform/build — treat as no session.
+      }
+      if (!storedAccessToken || !storedRefreshToken) {
+        await clearSession();
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         setStatus('signedOut');
         return;
       }
+
       try {
-        const me = await api.me(storedToken);
-        setToken(storedToken);
+        const [me] = await Promise.all([
+          api.me(storedAccessToken),
+          new Promise((resolve) => setTimeout(resolve, 5000))
+        ]);
+        setToken(storedAccessToken);
+        setRefreshToken(storedRefreshToken);
+        setUser(me);
+        setStatus('signedIn');
+        return;
+      } catch {
+        // Access token likely expired (15 min TTL) — fall through to a refresh attempt
+        // so a returning user isn't signed out just because the app was closed a while.
+      }
+
+      try {
+        const [rotated] = await Promise.all([
+          api.refresh(storedRefreshToken),
+          new Promise((resolve) => setTimeout(resolve, 5000))
+        ]);
+        const me = await api.me(rotated.accessToken);
+        await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, rotated.accessToken);
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, rotated.refreshToken);
+        setToken(rotated.accessToken);
+        setRefreshToken(rotated.refreshToken);
         setUser(me);
         setStatus('signedIn');
       } catch {
-        await SecureStore.deleteItemAsync(TOKEN_KEY);
+        await clearSession();
         setStatus('signedOut');
       }
     })();
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const result = await api.login(username, password);
-    await SecureStore.setItemAsync(TOKEN_KEY, result.token);
-    setToken(result.token);
+  const applySession = useCallback(async (result: AuthResponse) => {
+    await persistSession(result);
+    setToken(result.accessToken);
+    setRefreshToken(result.refreshToken);
     setUser(result.user);
     setStatus('signedIn');
   }, []);
 
+  const login = useCallback(
+    async (username: string, password: string) => {
+      const result = await api.login(username, password);
+      await applySession(result);
+    },
+    [applySession]
+  );
+
+  const requestOtp = useCallback(async (phone: string) => {
+    await api.requestOtp(phone);
+  }, []);
+
+  const verifyOtp = useCallback(
+    async (phone: string, code: string) => {
+      const result = await api.verifyOtp(phone, code);
+      await applySession(result);
+      return result.user;
+    },
+    [applySession]
+  );
+
+  // No backend endpoint for this yet — updates the cached user so a first-time
+  // signup doesn't get asked for their name again until the API lands.
+  const completeProfile = useCallback((name: string) => {
+    setUser((prev) => (prev ? { ...prev, name } : prev));
+  }, []);
+
   const logout = useCallback(async () => {
-    if (token) {
-      await api.logout(token).catch(() => undefined);
+    if (refreshToken) {
+      await api.logout(refreshToken).catch(() => undefined);
     }
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await clearSession();
     setToken(null);
+    setRefreshToken(null);
     setUser(null);
     setStatus('signedOut');
-  }, [token]);
+  }, [refreshToken]);
 
   const value = useMemo(
-    () => ({ status, token, user, login, logout }),
-    [status, token, user, login, logout]
+    () => ({ status, token, user, login, requestOtp, verifyOtp, completeProfile, logout }),
+    [status, token, user, login, requestOtp, verifyOtp, completeProfile, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
