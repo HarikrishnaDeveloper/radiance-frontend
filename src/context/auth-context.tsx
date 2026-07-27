@@ -55,16 +55,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
       if (!storedAccessToken || !storedRefreshToken) {
         await clearSession();
-        await new Promise((resolve) => setTimeout(resolve, 5000));
         setStatus('signedOut');
         return;
       }
 
       try {
-        const [me] = await Promise.all([
-          api.me(storedAccessToken),
-          new Promise((resolve) => setTimeout(resolve, 5000))
-        ]);
+        const me = await api.me(storedAccessToken);
         setToken(storedAccessToken);
         setRefreshToken(storedRefreshToken);
         setUser(me);
@@ -76,10 +72,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       try {
-        const [rotated] = await Promise.all([
-          api.refresh(storedRefreshToken),
-          new Promise((resolve) => setTimeout(resolve, 5000))
-        ]);
+        const rotated = await api.refresh(storedRefreshToken);
         const me = await api.me(rotated.accessToken);
         await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, rotated.accessToken);
         await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, rotated.refreshToken);
