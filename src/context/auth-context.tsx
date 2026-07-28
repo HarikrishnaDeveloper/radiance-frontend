@@ -17,7 +17,13 @@ type AuthContextValue = {
   login: (username: string, password: string) => Promise<void>;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, code: string) => Promise<AuthUser>;
-  completeProfile: (name: string) => void;
+  completeProfile: (details: {
+    name: string;
+    email?: string;
+    state?: string;
+    dateOfBirth?: string;
+    password?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -116,11 +122,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [applySession]
   );
 
-  // No backend endpoint for this yet — updates the cached user so a first-time
-  // signup doesn't get asked for their name again until the API lands.
-  const completeProfile = useCallback((name: string) => {
-    setUser((prev) => (prev ? { ...prev, name } : prev));
-  }, []);
+  const completeProfile = useCallback(
+    async (details: { name: string; email?: string; state?: string; dateOfBirth?: string; password?: string }) => {
+      if (!token) throw new Error('Not signed in');
+      const result = await api.updateProfile(token, details);
+      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, result.accessToken);
+      setToken(result.accessToken);
+      setUser(result.user);
+    },
+    [token]
+  );
 
   const logout = useCallback(async () => {
     if (refreshToken) {

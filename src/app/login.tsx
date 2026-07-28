@@ -1,7 +1,8 @@
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { ChooseUsernameScreen } from '@/components/login/choose-username-screen';
-import { CreatePasswordScreen } from '@/components/login/create-password-screen';
+import { ProfileSuccessScreen } from '@/components/login/profile-success-screen';
 import { ForgotOtpScreen } from '@/components/login/forgot-otp-screen';
 import { ForgotPasswordScreen } from '@/components/login/forgot-password-screen';
 import { ForgotPhoneScreen } from '@/components/login/forgot-phone-screen';
@@ -16,8 +17,8 @@ type Screen =
   | 'login'
   | 'phone'
   | 'otp'
-  | 'password'
   | 'profile'
+  | 'profileSuccess'
   | 'forgotPhone'
   | 'forgotOtp'
   | 'forgotPassword'
@@ -44,11 +45,6 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
-
   const [resetOtpCode, setResetOtpCode] = useState('');
   const [resetPassword, setResetPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
@@ -60,6 +56,13 @@ export default function LoginScreen() {
     const id = setInterval(() => setResendTimer((t) => t - 1), 1000);
     return () => clearInterval(id);
   }, [resendTimer]);
+
+  useEffect(() => {
+    if (screen === 'otp' && otpCode.length === OTP_LENGTH && !submitting) {
+      handleVerifyOtp();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otpCode, screen]);
 
   const formatTimer = useCallback((s: number) => {
     const m = Math.floor(s / 60);
@@ -121,8 +124,8 @@ export default function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      const verifiedUser = await verifyOtp(fullPhone, otpCode);
-      setScreen(verifiedUser.name ? 'profile' : 'password');
+      await verifyOtp(fullPhone, otpCode);
+      setScreen('profile');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not reach the server');
     } finally {
@@ -145,26 +148,38 @@ export default function LoginScreen() {
     }
   }
 
-  function handleCreatePassword() {
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+  async function handleChooseUsername(details: {
+    fullName: string;
+    email?: string;
+    state?: string;
+    dateOfBirth?: string;
+    password: string;
+  }) {
+    const finalName = details.fullName.trim();
+    if (!finalName) {
+      setError('Enter your full name');
       return;
     }
-    if (newPassword !== confirmNewPassword) {
-      setError('Passwords do not match');
+    if (details.password.length < 6) {
+      setError('Password must be at least 6 characters long');
       return;
     }
     setError(null);
-    setScreen('profile');
-  }
-
-  function handleChooseUsername() {
-    if (!username.trim()) {
-      setError('Enter a username');
-      return;
+    setSubmitting(true);
+    try {
+      await completeProfile({
+        name: finalName,
+        email: details.email,
+        state: details.state,
+        dateOfBirth: details.dateOfBirth,
+        password: details.password,
+      });
+      router.replace('/profile-success');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not reach the server');
+    } finally {
+      setSubmitting(false);
     }
-    setError(null);
-    completeProfile(username.trim());
   }
 
   function goBackToPhone() {
@@ -267,32 +282,20 @@ export default function LoginScreen() {
     );
   }
 
-  if (screen === 'password') {
-    return (
-      <CreatePasswordScreen
-        newPassword={newPassword}
-        onNewPasswordChange={setNewPassword}
-        showNewPassword={showNewPassword}
-        onToggleShowNewPassword={() => setShowNewPassword((v) => !v)}
-        confirmNewPassword={confirmNewPassword}
-        onConfirmNewPasswordChange={setConfirmNewPassword}
-        showConfirmNewPassword={showConfirmNewPassword}
-        onToggleShowConfirmNewPassword={() => setShowConfirmNewPassword((v) => !v)}
-        error={error}
-        onContinue={handleCreatePassword}
-      />
-    );
-  }
-
   if (screen === 'profile') {
     return (
       <ChooseUsernameScreen
         username={username}
         onUsernameChange={setUsername}
         error={error}
+        submitting={submitting}
         onSubmit={handleChooseUsername}
       />
     );
+  }
+
+  if (screen === 'profileSuccess') {
+    return <ProfileSuccessScreen onContinue={() => router.replace('/')} />;
   }
 
   if (screen === 'forgotPhone') {

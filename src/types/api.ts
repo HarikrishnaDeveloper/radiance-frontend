@@ -5,6 +5,8 @@ export type AuthUser = {
   username: string | null;
   name: string | null;
   phone?: string | null;
+  email?: string | null;
+  state?: string | null;
 };
 
 export type AuthResponse = {

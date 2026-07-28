@@ -42,7 +42,7 @@ export const loginStyles = StyleSheet.create({
   stepIconWrap: { alignItems: 'center', marginVertical: 5 },
   stepIconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   stepIconEmoji: { fontSize: 32 },
-  otpHeroImage: { width: 550, height: 550 },
+  otpHeroImage: { width: 550, height: 550, top: -80 },
 
   // ─── Content ───
   content: { paddingHorizontal: 28, paddingTop: 3 },
@@ -175,7 +175,7 @@ export const loginStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 8,
     paddingVertical: 18,
     marginTop: 24,
     shadowColor: COLORS.purpleDark,

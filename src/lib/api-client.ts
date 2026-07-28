@@ -68,6 +68,16 @@ export const api = {
 
   me: (token: string) => request<AuthUser>('/api/auth/me', { token }),
 
+  updateProfile: (
+    token: string,
+    details: { name: string; email?: string; state?: string; dateOfBirth?: string; password?: string }
+  ) =>
+    request<{ accessToken: string; user: AuthUser }>('/api/auth/profile', {
+      method: 'PATCH',
+      token,
+      body: details,
+    }),
+
   dashboard: (token: string) => request<DashboardResponse>('/api/dashboard', { token }),
 
   categories: (token: string) => request<CategorySummary[]>('/api/categories', { token }),

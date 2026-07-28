@@ -41,7 +41,10 @@ export function OtpInput({ value, onChange }: { value: string; onChange: (v: str
           onChangeText={(t) => handleChange(t, i)}
           onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
           keyboardType="number-pad"
-          maxLength={2}
+          maxLength={i === 0 ? OTP_LENGTH : 2}
+          textContentType="oneTimeCode"
+          autoComplete={i === 0 ? 'sms-otp' : 'off'}
+          importantForAutofill={i === 0 ? 'yes' : 'no'}
           onFocus={() => setFocusedIndex(i)}
           onBlur={() => setFocusedIndex((f) => (f === i ? null : f))}
           style={[

@@ -2,13 +2,13 @@ import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useAnimatedProps, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useAnimatedProps, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { TextInput } from 'react-native';
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function AnimatedText({ text, style }: { text: Animated.SharedValue<string>; style?: any }) {
+function AnimatedText({ text, style }: { text: SharedValue<string>; style?: any }) {
   const animatedProps = useAnimatedProps(() => ({
     text: text.value,
     defaultValue: text.value,
@@ -50,7 +50,7 @@ export function SplashContent() {
 
   useEffect(() => {
     SplashScreen.hideAsync();
-    progress.value = withTiming(100, { duration: 900 });
+    progress.value = withTiming(500, { duration: 900 });
   }, [progress]);
 
   const barStyle = useAnimatedStyle(() => ({

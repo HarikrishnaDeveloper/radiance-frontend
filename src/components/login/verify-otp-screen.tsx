@@ -8,7 +8,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from './colors';
 import { loginStyles as styles } from './login-styles';
 import { OtpInput } from './otp-input';
-import { StepDots } from './step-dots';
 
 type Props = {
   phone: string;
@@ -44,7 +43,7 @@ export function VerifyOtpScreen({
               <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
                 <Text style={styles.backArrow}>‹</Text>
               </Pressable>
-              <StepDots current={2} />
+              {/* <StepDots current={2} /> */}
               <View style={styles.backBtn} />
             </View>
 
@@ -56,7 +55,7 @@ export function VerifyOtpScreen({
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInUp.duration(400)} style={styles.content}>
+            <Animated.View entering={FadeInUp.duration(400)} style={[styles.content, { top: -240 }]}>
               <Text style={[styles.title, { textAlign: 'center' }]}>Verify Your Number</Text>
               <Text style={styles.subtitle}>Enter the 6-digit OTP sent to</Text>
               <View style={styles.phoneEditRow}>
