@@ -70,7 +70,7 @@ export const api = {
 
   updateProfile: (
     token: string,
-    details: { name: string; email?: string; state?: string; dateOfBirth?: string; password?: string }
+    details: { name?: string; email?: string; state?: string; dateOfBirth?: string; password?: string }
   ) =>
     request<{ accessToken: string; user: AuthUser }>('/api/auth/profile', {
       method: 'PATCH',

@@ -109,7 +109,7 @@ export function WelcomeBackScreen({
                   end={{ x: 1, y: 1 }}
                   style={[styles.purpleButton, { marginTop: 28 }]}>
                   <Text style={styles.purpleButtonText}>{submitting ? 'Logging in…' : 'Login'}</Text>
-                  <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} />
+                  {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
                 </LinearGradient>
               </Pressable>
 

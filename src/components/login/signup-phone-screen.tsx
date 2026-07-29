@@ -5,7 +5,9 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput,
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useEffect, useState } from 'react';
 import { COLORS } from './colors';
+import { Toast, type ToastData } from '../toast';
 import { loginStyles as styles } from './login-styles';
 
 type Props = {
@@ -18,8 +20,19 @@ type Props = {
 };
 
 export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onContinue, onGoToLogin }: Props) {
+  const [toast, setToast] = useState<ToastData | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      setToast({ type: 'error', message: error });
+    } else {
+      setToast(null);
+    }
+  }, [error]);
+
   return (
     <View style={styles.loginContainer}>
+      <Toast toast={toast} onHide={() => setToast(null)} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.select({ ios: 'padding', default: undefined })}>
         <ScrollView contentContainerStyle={styles.loginScrollContent} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <SafeAreaView style={styles.safeArea}>
@@ -55,12 +68,6 @@ export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onC
                 </View>
               </View>
 
-              {error && (
-                <Animated.View entering={FadeIn.duration(200)} style={styles.errorBox}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </Animated.View>
-              )}
-
               <Pressable onPress={onContinue} disabled={submitting} style={({ pressed }) => [{ marginTop: 32 }, pressed && styles.buttonPressed]}>
                 <LinearGradient
                   colors={[COLORS.purple, COLORS.purpleDark]}
@@ -68,7 +75,7 @@ export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onC
                   end={{ x: 1, y: 1 }}
                   style={styles.purpleButton}>
                   <Text style={styles.purpleButtonText}>{submitting ? 'Sending…' : 'Continue'}</Text>
-                  <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} />
+                  {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
                 </LinearGradient>
               </Pressable>
 

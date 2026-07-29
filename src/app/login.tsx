@@ -6,13 +6,13 @@ import { ProfileSuccessScreen } from '@/components/login/profile-success-screen'
 import { ForgotOtpScreen } from '@/components/login/forgot-otp-screen';
 import { ForgotPasswordScreen } from '@/components/login/forgot-password-screen';
 import { ForgotPhoneScreen } from '@/components/login/forgot-phone-screen';
-import { ForgotSuccessScreen } from '@/components/login/forgot-success-screen';
 import { OTP_LENGTH, RESEND_TIMER } from '@/components/login/login-styles';
 import { SignupPhoneScreen } from '@/components/login/signup-phone-screen';
 import { VerifyOtpScreen } from '@/components/login/verify-otp-screen';
 import { WelcomeBackScreen } from '@/components/login/welcome-back-screen';
 import type { ToastData } from '@/components/toast';
 import { ApiError, useAuth } from '@/context/auth-context';
+import { api } from '@/lib/api-client';
 
 type Screen =
   | 'login'
@@ -22,8 +22,7 @@ type Screen =
   | 'profileSuccess'
   | 'forgotPhone'
   | 'forgotOtp'
-  | 'forgotPassword'
-  | 'forgotSuccess';
+  | 'forgotPassword';
 
 export default function LoginScreen() {
   const { user, login, requestOtp, verifyOtp, completeProfile } = useAuth();
@@ -52,6 +51,7 @@ export default function LoginScreen() {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+  const [resetAccessToken, setResetAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -196,29 +196,67 @@ export default function LoginScreen() {
     setResetOtpCode('');
     setResetPassword('');
     setResetConfirmPassword('');
+    setResetAccessToken(null);
     setScreen('forgotPhone');
   }
 
-  function handleSendResetCode() {
+  async function handleSendResetCode() {
     const rawPhone = phone.trim().replace(/\s/g, '');
     if (rawPhone.length < 10) {
       setError('Enter a valid 10-digit mobile number');
       return;
     }
     setError(null);
-    setScreen('forgotOtp');
+    setSubmitting(true);
+    try {
+      await requestOtp(`+91${rawPhone}`);
+      setScreen('forgotOtp');
+      setResendTimer(RESEND_TIMER);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not reach the server');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function handleVerifyResetCode() {
+  async function handleResendResetOtp() {
+    if (resendTimer > 0) return;
+    setSubmitting(true);
+    try {
+      await requestOtp(`+91${phone.trim().replace(/\s/g, '')}`);
+      setResendTimer(RESEND_TIMER);
+      setResetOtpCode('');
+      setError(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not reach the server');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleVerifyResetCode() {
     if (resetOtpCode.length < OTP_LENGTH) {
       setError('Enter the complete 6-digit code');
       return;
     }
+    const fullPhone = `+91${phone.trim().replace(/\s/g, '')}`;
     setError(null);
-    setScreen('forgotPassword');
+    setSubmitting(true);
+    try {
+      // Uses the raw API call (not the context's verifyOtp) so this doesn't sign the
+      // user into the app yet — AuthGate would otherwise redirect straight to the
+      // dashboard the moment status flips to signedIn, skipping the reset-password step.
+      const result = await api.verifyOtp(fullPhone, resetOtpCode);
+      setResetAccessToken(result.accessToken);
+      setScreen('forgotPassword');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not reach the server');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function handleResetPassword() {
+  async function handleResetPassword() {
     if (resetPassword.length < 6) {
       setError('Password must be at least 6 characters');
       return;
@@ -227,8 +265,22 @@ export default function LoginScreen() {
       setError('Passwords do not match');
       return;
     }
+    if (!resetAccessToken) {
+      setError('Your session expired. Please verify your number again.');
+      setScreen('forgotPhone');
+      return;
+    }
     setError(null);
-    setScreen('forgotSuccess');
+    setSubmitting(true);
+    try {
+      await api.updateProfile(resetAccessToken, { password: resetPassword });
+      const rawPhone = phone.trim().replace(/\s/g, '');
+      await login(`+91${rawPhone}`, resetPassword);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not reach the server');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function goBackToLogin() {
@@ -309,6 +361,7 @@ export default function LoginScreen() {
         phone={phone}
         onPhoneChange={handlePhoneChange}
         error={error}
+        submitting={submitting}
         onBack={goBackToLogin}
         onSendCode={handleSendResetCode}
       />
@@ -322,29 +375,28 @@ export default function LoginScreen() {
         resetOtpCode={resetOtpCode}
         onOtpChange={setResetOtpCode}
         error={error}
+        submitting={submitting}
         onBack={() => { setError(null); setScreen('forgotPhone'); }}
-        onResend={() => setResetOtpCode('')}
+        onResend={handleResendResetOtp}
         onVerify={handleVerifyResetCode}
       />
     );
   }
 
-  if (screen === 'forgotPassword') {
-    return (
-      <ForgotPasswordScreen
-        resetPassword={resetPassword}
-        onResetPasswordChange={setResetPassword}
-        showResetPassword={showResetPassword}
-        onToggleShowResetPassword={() => setShowResetPassword((v) => !v)}
-        resetConfirmPassword={resetConfirmPassword}
-        onResetConfirmPasswordChange={setResetConfirmPassword}
-        showResetConfirmPassword={showResetConfirmPassword}
-        onToggleShowResetConfirmPassword={() => setShowResetConfirmPassword((v) => !v)}
-        error={error}
-        onSubmit={handleResetPassword}
-      />
-    );
-  }
-
-  return <ForgotSuccessScreen onBackToLogin={goBackToLogin} />;
+  return (
+    <ForgotPasswordScreen
+      resetPassword={resetPassword}
+      onResetPasswordChange={setResetPassword}
+      showResetPassword={showResetPassword}
+      onToggleShowResetPassword={() => setShowResetPassword((v) => !v)}
+      resetConfirmPassword={resetConfirmPassword}
+      onResetConfirmPasswordChange={setResetConfirmPassword}
+      showResetConfirmPassword={showResetConfirmPassword}
+      onToggleShowResetConfirmPassword={() => setShowResetConfirmPassword((v) => !v)}
+      error={error}
+      submitting={submitting}
+      onBack={() => { setError(null); setScreen('forgotOtp'); }}
+      onSubmit={handleResetPassword}
+    />
+  );
 }

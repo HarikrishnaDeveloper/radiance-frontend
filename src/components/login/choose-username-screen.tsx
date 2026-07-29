@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,6 +18,8 @@ import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { COLORS } from './colors';
+import { Toast, type ToastData } from '../toast';
+import { loginStyles as styles } from './login-styles';
 
 const INDIAN_STATES = [
   'Andhra Pradesh',
@@ -87,10 +89,6 @@ export function ChooseUsernameScreen({
   const [selectedState, setSelectedState] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
 
-  const [isNameFocused, setIsNameFocused] = useState(false);
-  const [isEmailFocused, setIsEmailFocused] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  const [isDobFocused, setIsDobFocused] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -159,229 +157,179 @@ export function ChooseUsernameScreen({
     });
   }
 
+  const displayError = localError || error;
+  const [toast, setToast] = useState<ToastData | null>(null);
+
+  useEffect(() => {
+    if (displayError) {
+      setToast({ type: 'error', message: displayError });
+    } else {
+      setToast(null);
+    }
+  }, [displayError]);
+
   return (
-    <View style={styles.container}>
+    <View style={styles.loginContainer}>
+      <Toast toast={toast} onHide={() => { setToast(null); if (localError) setLocalError(null); }} />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.select({ ios: 'padding', default: undefined })}>
+        behavior={Platform.select({ ios: 'padding', default: 'height' })}
+        keyboardVerticalOffset={Platform.select({ ios: 0, default: 0 })}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.loginScrollContent}
           bounces={false}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           <SafeAreaView style={styles.safeArea}>
-            <Animated.View entering={FadeIn.duration(450)} style={styles.heroWrap}>
+            <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
               <Image
+                style={styles.loginBookImage}
                 source={require('../../../assets/login/profile.png')}
-                style={styles.heroImage}
                 contentFit="contain"
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInUp.duration(450)} style={styles.content}>
-              <Text style={styles.title}>Let&apos;s Get Started</Text>
+            <Animated.View entering={FadeInUp.duration(400)} style={styles.content}>
+              <Text style={styles.loginWelcome}>Let&apos;s Get Started</Text>
               <Text style={styles.subtitle}>Tell us a few details about yourself</Text>
 
-              <View style={styles.formContainer}>
-                {/* Full Name */}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.labelDark}>Full Name</Text>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      isNameFocused && styles.inputRowFocused,
-                    ]}>
-                    <Ionicons
-                      name="person-outline"
-                      size={20}
-                      color={COLORS.purple}
-                      style={styles.leftIcon}
-                    />
-                    <TextInput
-                      value={fullName}
-                      onChangeText={handleFullNameChange}
-                      placeholder="Enter your full name"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="words"
-                      onFocus={() => setIsNameFocused(true)}
-                      onBlur={() => setIsNameFocused(false)}
-                      style={styles.inputField}
-                    />
-                  </View>
+              <View style={[styles.inputGroup, { marginTop: 32 }]}>
+                <Text style={styles.fieldLabel}>Full Name</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons
+                    name="person-outline"
+                    size={18}
+                    color={COLORS.purple}
+                    style={[styles.inputLeadingIcon, { marginLeft: 14 }]}
+                  />
+                  <TextInput
+                    value={fullName}
+                    onChangeText={handleFullNameChange}
+                    placeholder="Enter your full name"
+                    placeholderTextColor={COLORS.grayLight}
+                    autoCapitalize="words"
+                    style={styles.inputField}
+                  />
                 </View>
+              </View>
 
-                {/* Email Address */}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.labelRow}>
-                    <Text style={styles.labelDark}>Email Address </Text>
-                    <Text style={styles.labelOptional}>(Optional)</Text>
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      isEmailFocused && styles.inputRowFocused,
-                    ]}>
-                    <Ionicons
-                      name="mail-outline"
-                      size={20}
-                      color={COLORS.purple}
-                      style={styles.leftIcon}
-                    />
-                    <TextInput
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="Enter your email address"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                      onFocus={() => setIsEmailFocused(true)}
-                      onBlur={() => setIsEmailFocused(false)}
-                      style={styles.inputField}
-                    />
-                  </View>
+              <View style={styles.inputGroup}>
+                <Text style={localStyles.labelRow}>
+                  <Text style={styles.fieldLabel}>Email Address </Text>
+                  <Text style={localStyles.labelOptional}>(Optional)</Text>
+                </Text>
+                <View style={styles.inputRow}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={18}
+                    color={COLORS.purple}
+                    style={[styles.inputLeadingIcon, { marginLeft: 14 }]}
+                  />
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email address"
+                    placeholderTextColor={COLORS.grayLight}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    style={styles.inputField}
+                  />
                 </View>
+              </View>
 
-                {/* Password */}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.labelDark}>Password</Text>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      isPasswordFocused && styles.inputRowFocused,
-                    ]}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.fieldLabel}>Password</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={18}
+                    color={COLORS.purple}
+                    style={[styles.inputLeadingIcon, { marginLeft: 14 }]}
+                  />
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Create a password"
+                    placeholderTextColor={COLORS.grayLight}
+                    autoCapitalize="none"
+                    secureTextEntry={!showPassword}
+                    style={styles.inputField}
+                  />
+                  <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={12} style={styles.eyeBtn}>
                     <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color={COLORS.purple}
-                      style={styles.leftIcon}
+                      name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                      size={18}
+                      color={COLORS.grayLight}
                     />
-                    <TextInput
-                      value={password}
-                      onChangeText={setPassword}
-                      placeholder="Create a password"
-                      placeholderTextColor="#94A3B8"
-                      autoCapitalize="none"
-                      secureTextEntry={!showPassword}
-                      onFocus={() => setIsPasswordFocused(true)}
-                      onBlur={() => setIsPasswordFocused(false)}
-                      style={styles.inputField}
-                    />
-                    <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-                      <Ionicons
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                        size={20}
-                        color={COLORS.purple}
-                      />
-                    </Pressable>
-                  </View>
-                  <Text style={styles.hintText}>Password must be at least 6 characters long</Text>
-                </View>
-
-                {/* State */}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.labelRow}>
-                    <Text style={styles.labelDark}>State </Text>
-                    <Text style={styles.labelOptional}>(Optional)</Text>
-                  </Text>
-                  <Pressable
-                    style={[
-                      styles.inputRow,
-                      modalVisible && styles.inputRowFocused,
-                    ]}
-                    onPress={() => setModalVisible(true)}>
-                    <Ionicons
-                      name="location-outline"
-                      size={20}
-                      color={COLORS.purple}
-                      style={styles.leftIcon}
-                    />
-                    <Text
-                      style={[
-                        styles.stateValue,
-                        !selectedState && styles.statePlaceholder,
-                      ]}>
-                      {selectedState || 'Select your state'}
-                    </Text>
-                    <Ionicons name="chevron-down" size={18} color="#64748B" />
                   </Pressable>
                 </View>
-
-                {/* Date of Birth */}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.labelRow}>
-                    <Text style={styles.labelDark}>Date of Birth </Text>
-                    <Text style={styles.labelOptional}>(Optional)</Text>
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      isDobFocused && styles.inputRowFocused,
-                    ]}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color={COLORS.purple}
-                      style={styles.leftIcon}
-                    />
-                    <TextInput
-                      value={dateOfBirth}
-                      onChangeText={handleDobChange}
-                      placeholder="DD/MM/YYYY"
-                      placeholderTextColor="#94A3B8"
-                      keyboardType="number-pad"
-                      onFocus={() => setIsDobFocused(true)}
-                      onBlur={() => setIsDobFocused(false)}
-                      style={styles.inputField}
-                    />
-                  </View>
-                </View>
-
-                {/* Error Box */}
-                {(localError || error) && (
-                  <Animated.View entering={FadeIn.duration(200)} style={styles.errorBox}>
-                    <Ionicons
-                      name="alert-circle"
-                      size={18}
-                      color="#E53935"
-                      style={styles.errorIcon}
-                    />
-                    <Text style={styles.errorText}>{localError || error}</Text>
-                  </Animated.View>
-                )}
-
-                {/* Continue Button */}
-                <Pressable
-                  onPress={handleContinue}
-                  disabled={submitting}
-                  style={({ pressed }) => [
-                    styles.buttonWrapper,
-                    pressed && styles.buttonPressed,
-                  ]}>
-                  <LinearGradient
-                    colors={['#6366F1', '#4F46E5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.continueButton}>
-                    {submitting ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                      <>
-                        <Text style={styles.continueText}>Continue</Text>
-                        <Ionicons
-                          name="arrow-forward"
-                          size={20}
-                          color="#FFFFFF"
-                          style={styles.arrowIcon}
-                        />
-                      </>
-                    )}
-                  </LinearGradient>
-                </Pressable>
-
-                <Text style={styles.footerText}>
-                  You can update this later in settings
-                </Text>
+                <Text style={localStyles.hintText}>Password must be at least 6 characters long</Text>
               </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={localStyles.labelRow}>
+                  <Text style={styles.fieldLabel}>State </Text>
+                  <Text style={localStyles.labelOptional}>(Optional)</Text>
+                </Text>
+                <Pressable style={styles.inputRow} onPress={() => setModalVisible(true)}>
+                  <Ionicons
+                    name="location-outline"
+                    size={18}
+                    color={COLORS.purple}
+                    style={[styles.inputLeadingIcon, { marginLeft: 14 }]}
+                  />
+                  <Text
+                    style={[
+                      localStyles.stateValue,
+                      !selectedState && localStyles.statePlaceholder,
+                    ]}>
+                    {selectedState || 'Select your state'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={COLORS.grayLight} style={{ marginRight: 12 }} />
+                </Pressable>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={localStyles.labelRow}>
+                  <Text style={styles.fieldLabel}>Date of Birth </Text>
+                  <Text style={localStyles.labelOptional}>(Optional)</Text>
+                </Text>
+                <View style={styles.inputRow}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={18}
+                    color={COLORS.purple}
+                    style={[styles.inputLeadingIcon, { marginLeft: 14 }]}
+                  />
+                  <TextInput
+                    value={dateOfBirth}
+                    onChangeText={handleDobChange}
+                    placeholder="DD/MM/YYYY"
+                    placeholderTextColor={COLORS.grayLight}
+                    keyboardType="number-pad"
+                    style={styles.inputField}
+                  />
+                </View>
+              </View>
+
+              <Pressable
+                onPress={handleContinue}
+                disabled={submitting}
+                style={({ pressed }) => [{ marginTop: 28 }, pressed && styles.buttonPressed]}>
+                <LinearGradient
+                  colors={[COLORS.purple, COLORS.purpleDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.purpleButton, { marginTop: 0 }]}>
+                  {submitting ? (
+                    <ActivityIndicator color={COLORS.white} size="small" />
+                  ) : (
+                    <Text style={styles.purpleButtonText}>Continue</Text>
+                  )}
+                </LinearGradient>
+              </Pressable>
+
+              <Text style={styles.assuranceText}>You can update this later in settings</Text>
             </Animated.View>
           </SafeAreaView>
         </ScrollView>
@@ -393,47 +341,44 @@ export function ChooseUsernameScreen({
         transparent
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setModalVisible(false)}
-          />
-          <View style={styles.modalSheet}>
-            <View style={styles.sheetHandle} />
+        <KeyboardAvoidingView
+          style={localStyles.modalOverlay}
+          behavior={Platform.select({ ios: 'padding', default: 'height' })}>
+          <Pressable style={localStyles.modalBackdrop} onPress={() => setModalVisible(false)} />
+          <View style={localStyles.modalSheet}>
+            <View style={localStyles.sheetHandle} />
 
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Select State / Union Territory</Text>
-              <Pressable
-                onPress={() => setModalVisible(false)}
-                style={styles.closeBtn}>
-                <Ionicons name="close" size={20} color="#0F172A" />
+            <View style={localStyles.sheetHeader}>
+              <Text style={localStyles.sheetTitle}>Select State / Union Territory</Text>
+              <Pressable onPress={() => setModalVisible(false)} style={localStyles.closeBtn}>
+                <Ionicons name="close" size={20} color={COLORS.navy} />
               </Pressable>
             </View>
 
-            <View style={styles.searchBox}>
+            <View style={[styles.inputRow, localStyles.searchBox]}>
               <Ionicons
                 name="search-outline"
                 size={18}
-                color="#94A3B8"
-                style={styles.searchIcon}
+                color={COLORS.grayLight}
+                style={[styles.inputLeadingIcon, { marginLeft: 14 }]}
               />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search state..."
-                placeholderTextColor="#94A3B8"
-                style={styles.searchInput}
+                placeholderTextColor={COLORS.grayLight}
+                style={styles.inputField}
               />
               {searchQuery.length > 0 && (
-                <Pressable onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                <Pressable onPress={() => setSearchQuery('')} style={{ marginRight: 12 }}>
+                  <Ionicons name="close-circle" size={18} color={COLORS.grayLight} />
                 </Pressable>
               )}
             </View>
 
             <ScrollView
-              style={styles.stateList}
-              contentContainerStyle={styles.stateListContent}
+              style={localStyles.stateList}
+              contentContainerStyle={localStyles.stateListContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
               {selectedState ? (
@@ -443,8 +388,8 @@ export function ChooseUsernameScreen({
                     setModalVisible(false);
                     setSearchQuery('');
                   }}
-                  style={styles.clearOptionRow}>
-                  <Text style={styles.clearOptionText}>Clear Selection</Text>
+                  style={localStyles.clearOptionRow}>
+                  <Text style={localStyles.clearOptionText}>Clear Selection</Text>
                 </Pressable>
               ) : null}
 
@@ -459,218 +404,55 @@ export function ChooseUsernameScreen({
                       setSearchQuery('');
                     }}
                     style={({ pressed }) => [
-                      styles.stateRow,
-                      isSelected && styles.stateRowSelected,
-                      pressed && styles.stateRowPressed,
+                      localStyles.stateRow,
+                      isSelected && localStyles.stateRowSelected,
+                      pressed && localStyles.stateRowPressed,
                     ]}>
                     <Text
                       style={[
-                        styles.stateRowText,
-                        isSelected && styles.stateRowTextSelected,
+                        localStyles.stateRowText,
+                        isSelected && localStyles.stateRowTextSelected,
                       ]}>
                       {state}
                     </Text>
                     {isSelected && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={22}
-                        color={COLORS.purple}
-                      />
+                      <Ionicons name="checkmark-circle" size={20} color={COLORS.purple} />
                     )}
                   </Pressable>
                 );
               })}
 
               {filteredStates.length === 0 && (
-                <Text style={styles.emptyStateText}>No states found matching query</Text>
+                <Text style={localStyles.emptyStateText}>No states found matching query</Text>
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  heroWrap: {
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  heroImage: {
-    top: -30,
-    width: 350,
-    height: 350,
-  },
-  content: {
-    top: -90,
-    paddingHorizontal: 28,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 22,
-  },
-  formContainer: {
-    marginTop: 32,
-  },
-  fieldGroup: {
-    marginBottom: 18,
-  },
-  labelDark: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 8,
-  },
-  labelRow: {
-    marginBottom: 8,
-  },
-  labelOptional: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#64748B',
-  },
-  hintText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 6,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  inputRowFocused: {
-    borderColor: '#6366F1',
-    shadowColor: '#6366F1',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  leftIcon: {
-    marginRight: 12,
-  },
-  inputField: {
-    flex: 1,
-    fontSize: 15,
-    color: '#0F172A',
-    fontWeight: '500',
-    paddingVertical: 14,
-  },
-  stateValue: {
-    flex: 1,
-    fontSize: 15,
-    color: '#0F172A',
-    fontWeight: '500',
-  },
-  statePlaceholder: {
-    color: '#94A3B8',
-    fontWeight: '400',
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  errorIcon: {
-    marginRight: 8,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#E53935',
-  },
-  buttonWrapper: {
-    marginTop: 18,
-    borderRadius: 14,
-    shadowColor: '#4F46E5',
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
-  },
-  continueButton: {
-    height: 56,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  continueText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  arrowIcon: {
-    marginLeft: 8,
-  },
-  footerText: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 22,
-    marginBottom: 10,
-  },
+const localStyles = StyleSheet.create({
+  labelRow: { marginBottom: 8 },
+  labelOptional: { fontSize: 14, fontWeight: '400', color: COLORS.grayLight },
+  hintText: { fontSize: 12, color: COLORS.grayLight, marginTop: 6 },
 
-  // ─── Modal Styles ───
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  },
+  stateValue: { flex: 1, fontSize: 15, color: COLORS.navy, fontWeight: '500', paddingVertical: 14 },
+  statePlaceholder: { color: COLORS.grayLight, fontWeight: '400' },
+
+  // ─── State Picker Modal ───
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(21, 43, 92, 0.45)' },
   modalSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '80%',
     paddingTop: 12,
     paddingBottom: 28,
     paddingHorizontal: 24,
-    shadowColor: '#0F172A',
+    shadowColor: COLORS.navy,
     shadowOpacity: 0.25,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: -6 },
@@ -680,7 +462,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: COLORS.grayBorder,
     alignSelf: 'center',
     marginBottom: 18,
   },
@@ -690,86 +472,48 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
   },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: COLORS.navy },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.blueSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 46,
     marginBottom: 14,
-    backgroundColor: '#F8FAFC',
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
-    paddingVertical: 10,
-  },
-  stateList: {
-    maxHeight: 380,
-  },
-  stateListContent: {
-    paddingBottom: 20,
-  },
+  stateList: { maxHeight: 380 },
+  stateListContent: { paddingBottom: 20 },
   stateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: COLORS.grayBorder,
   },
   stateRowSelected: {
-    backgroundColor: '#F5F3FF',
+    backgroundColor: COLORS.purpleSoft,
     paddingHorizontal: 12,
     borderRadius: 10,
     borderBottomWidth: 0,
     marginVertical: 2,
   },
-  stateRowPressed: {
-    opacity: 0.7,
-  },
-  stateRowText: {
-    fontSize: 15,
-    color: '#1E293B',
-    fontWeight: '500',
-  },
-  stateRowTextSelected: {
-    color: '#6366F1',
-    fontWeight: '700',
-  },
+  stateRowPressed: { opacity: 0.7 },
+  stateRowText: { fontSize: 15, color: COLORS.navy, fontWeight: '500' },
+  stateRowTextSelected: { color: COLORS.purple, fontWeight: '700' },
   clearOptionRow: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: COLORS.grayBorder,
     alignItems: 'center',
   },
-  clearOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
+  clearOptionText: { fontSize: 14, fontWeight: '600', color: COLORS.gray },
   emptyStateText: {
     textAlign: 'center',
-    color: '#94A3B8',
+    color: COLORS.grayLight,
     fontSize: 14,
     marginTop: 24,
     marginBottom: 16,

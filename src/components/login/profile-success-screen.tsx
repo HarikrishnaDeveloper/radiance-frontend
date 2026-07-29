@@ -68,12 +68,12 @@ export function ProfileSuccessScreen({ onContinue }: Props) {
                   end={{ x: 1, y: 0 }}
                   style={styles.continueButton}>
                   <Text style={styles.continueText}>Continue to Dashboard</Text>
-                  <Ionicons
+                  {/* <Ionicons
                     name="arrow-forward"
                     size={20}
                     color="#FFFFFF"
                     style={styles.arrowIcon}
-                  />
+                  /> */}
                 </LinearGradient>
               </Pressable>
             </Animated.View>

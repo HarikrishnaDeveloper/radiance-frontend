@@ -1,11 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useEffect, useState } from 'react';
 import { COLORS } from './colors';
+import { Toast, type ToastData } from '../toast';
 import { loginStyles as styles } from './login-styles';
 import { OtpInput } from './otp-input';
 
@@ -34,8 +35,19 @@ export function VerifyOtpScreen({
   onResend,
   onVerify,
 }: Props) {
+  const [toast, setToast] = useState<ToastData | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      setToast({ type: 'error', message: error });
+    } else {
+      setToast(null);
+    }
+  }, [error]);
+
   return (
     <View style={styles.container}>
+      <Toast toast={toast} onHide={() => setToast(null)} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.select({ ios: 'padding', default: undefined })}>
         <ScrollView contentContainerStyle={styles.scrollContent} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <SafeAreaView style={styles.safeArea}>
@@ -47,15 +59,16 @@ export function VerifyOtpScreen({
               <View style={styles.backBtn} />
             </View>
 
-            <Animated.View entering={FadeIn.duration(400)} style={styles.stepIconWrap}>
+            <Animated.View entering={FadeIn.duration(400)} style={styles.otpHeroWrap} pointerEvents="none">
               <Image
                 style={styles.otpHeroImage}
                 source={require('../../../assets/login/otp-screen.png')}
                 contentFit="contain"
+                pointerEvents="none"
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInUp.duration(400)} style={[styles.content, { top: -240 }]}>
+            <Animated.View entering={FadeInUp.duration(400)} style={[styles.content, { zIndex: 10, elevation: 10 }]}>
               <Text style={[styles.title, { textAlign: 'center' }]}>Verify Your Number</Text>
               <Text style={styles.subtitle}>Enter the 6-digit OTP sent to</Text>
               <View style={styles.phoneEditRow}>
@@ -78,12 +91,6 @@ export function VerifyOtpScreen({
                 </Pressable>
               </View>
 
-              {error && (
-                <Animated.View entering={FadeIn.duration(200)} style={styles.errorBox}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </Animated.View>
-              )}
-
               <Pressable onPress={onVerify} disabled={submitting} style={({ pressed }) => [(pressed || submitting) && styles.buttonPressed]}>
                 <LinearGradient
                   colors={[COLORS.purple, COLORS.purpleDark]}
@@ -91,7 +98,7 @@ export function VerifyOtpScreen({
                   end={{ x: 1, y: 1 }}
                   style={styles.otpVerifyButton}>
                   <Text style={styles.otpVerifyButtonText}>{submitting ? 'Verifying…' : 'Verify'}</Text>
-                  <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} />
+                  {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
                 </LinearGradient>
               </Pressable>
             </Animated.View>

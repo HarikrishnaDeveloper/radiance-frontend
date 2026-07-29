@@ -42,7 +42,19 @@ export const loginStyles = StyleSheet.create({
   stepIconWrap: { alignItems: 'center', marginVertical: 5 },
   stepIconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   stepIconEmoji: { fontSize: 32 },
-  otpHeroImage: { width: 550, height: 550, top: -80 },
+  otpHeroWrap: {
+    height: 250,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+    overflow: 'visible',
+    zIndex: 1,
+    transform: [{ scale: 2 }],
+  },
+  otpHeroImage: {
+    width: 250,
+    height: 250,
+  },
 
   // ─── Content ───
   content: { paddingHorizontal: 28, paddingTop: 3 },
@@ -144,8 +156,8 @@ export const loginStyles = StyleSheet.create({
   loginScrollContent: { flexGrow: 1 },
 
   loginHero: { alignItems: 'center', paddingTop: 10 },
-  loginBookImage: { width: 250, height: 250 },
-  loginWelcome: { fontSize: 30, fontWeight: '600', color: COLORS.navy, marginTop: 2, textAlign: 'center' },
+  loginBookImage: { width: 350, height: 350, top: 30 },
+  loginWelcome: { fontSize: 30, fontWeight: '600', color: COLORS.navy, marginTop: 2, textAlign: 'center', },
   fieldLabel: { fontSize: 14, fontWeight: '700', color: COLORS.navy, marginBottom: 8 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   countryCode: { fontSize: 16, fontWeight: '700', color: COLORS.navy, marginLeft: 16 },
