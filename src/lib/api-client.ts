@@ -5,10 +5,14 @@ import type {
   AttemptResultsResponse,
   AuthResponse,
   AuthUser,
+  CategoryDetailResponse,
   CategorySummary,
   CompleteAttemptResponse,
+  ContinueLearning,
   DashboardResponse,
   PaperSummary,
+  StageDetailResponse,
+  StageSubmitResponse,
   SubmitAnswerResponse,
 } from '@/types/api';
 
@@ -110,6 +114,25 @@ export const api = {
 
   getResults: (token: string, attemptId: number) =>
     request<AttemptResultsResponse>(`/api/attempts/${attemptId}/results`, { token }),
+
+  categoryDetail: (token: string, categoryId: number) =>
+    request<CategoryDetailResponse>(`/api/categories/${categoryId}`, { token }),
+
+  stageDetail: (token: string, stageId: number) =>
+    request<StageDetailResponse>(`/api/stages/${stageId}`, { token }),
+
+  submitStage: (
+    token: string,
+    stageId: number,
+    answers: { questionId: number; selectedOptionId: number | null }[]
+  ) =>
+    request<StageSubmitResponse>(`/api/stages/${stageId}/submit`, {
+      method: 'POST',
+      token,
+      body: { answers },
+    }),
+
+  continueLearning: (token: string) => request<ContinueLearning>('/api/users/me/continue', { token }),
 };
 
 export type { AttemptMode };

@@ -19,6 +19,46 @@ export type CategorySummary = {
   id: number;
   name: string;
   questionCount: number;
+  foodWorldName: string | null;
+  icon: string | null;
+  color: string | null;
+  totalStages: number;
+  completedStages: number;
+  progress: number;
+};
+
+export type StageStatus = 'LOCKED' | 'UNLOCKED' | 'IN_PROGRESS' | 'COMPLETED';
+
+export type StageSummary = {
+  id: number;
+  stageNumber: number;
+  title: string;
+  questionCount: number;
+  rewardStars: number;
+  status: StageStatus;
+  starsEarned: number;
+  accuracy: number;
+};
+
+export type CategoryDetailResponse = {
+  id: number;
+  name: string;
+  foodWorldName: string | null;
+  icon: string | null;
+  color: string | null;
+  questionCount: number;
+  totalStages: number;
+  completedStages: number;
+  completionPercentage: number;
+  stages: StageSummary[];
+};
+
+export type StageProgress = {
+  status: StageStatus;
+  completedQuestions: number;
+  correctAnswers: number;
+  accuracy: number;
+  starsEarned: number;
 };
 
 export type PaperSummary = {
@@ -37,11 +77,36 @@ export type ContinueAttempt = {
   title: string;
 };
 
+export type RecentAchievement = {
+  stageId: number;
+  stageNumber: number;
+  categoryName: string;
+  foodWorldName: string | null;
+  starsEarned: number;
+  completedAt: string;
+};
+
+export type ContinueLearning =
+  | { allCompleted: true }
+  | {
+      allCompleted: false;
+      categoryId: number;
+      categoryName: string;
+      foodWorldName: string | null;
+      stageId: number;
+      stageNumber: number;
+      questionProgress: { completed: number; total: number };
+      resumeUrl: string;
+    };
+
 export type DashboardResponse = {
   streak: number;
   continueAttempt: ContinueAttempt | null;
   categories: CategorySummary[];
   papers: PaperSummary[];
+  categoryProgress: CategorySummary[];
+  continueLearning: ContinueLearning;
+  recentAchievements: RecentAchievement[];
 };
 
 export type AttemptHistoryItem = {
@@ -70,6 +135,29 @@ export type SafeQuestion = {
   category: { id: number; name: string };
   questionPaper?: { year: number } | null;
   options: SafeOption[];
+};
+
+export type StageDetailResponse = {
+  id: number;
+  stageNumber: number;
+  title: string;
+  foodWorldName: string | null;
+  questionCount: number;
+  rewardStars: number;
+  category: { id: number; name: string };
+  rewardThresholds: { threeStars: number; twoStars: number; oneStar: number };
+  progress: StageProgress | null;
+  questions: SafeQuestion[];
+};
+
+export type StageSubmitResponse = {
+  stageId: number;
+  completedQuestions: number;
+  correctAnswers: number;
+  accuracy: number;
+  starsEarned: number;
+  nextStageUnlocked: boolean;
+  nextStageId: number | null;
 };
 
 export type AttemptAnswerState = {

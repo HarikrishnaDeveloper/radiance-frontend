@@ -37,12 +37,6 @@ export default function ExploreScreen() {
     }, [load])
   );
 
-  async function startCategoryPractice(categoryId: number) {
-    if (!token) return;
-    const attempt = await api.createAttempt(token, { mode: 'CATEGORY_PRACTICE', categoryIds: [categoryId] });
-    router.push(`/quiz/${attempt.id}`);
-  }
-
   async function startFullPaper(questionPaperId: number) {
     if (!token) return;
     const attempt = await api.createAttempt(token, { mode: 'FULL_PAPER', questionPaperId });
@@ -64,11 +58,11 @@ export default function ExploreScreen() {
           <ThemedText type="subtitle">Practice by category</ThemedText>
           <ThemedView style={styles.list}>
             {categories.map((category) => (
-              <Pressable key={category.id} onPress={() => startCategoryPractice(category.id)}>
+              <Pressable key={category.id} onPress={() => router.push(`/category/${category.id}`)}>
                 <ThemedView type="backgroundElement" style={styles.row}>
-                  <ThemedText>{category.name}</ThemedText>
+                  <ThemedText>{category.foodWorldName ?? category.name}</ThemedText>
                   <ThemedText themeColor="textSecondary" type="small">
-                    {category.questionCount} questions
+                    {category.completedStages}/{category.totalStages} stages
                   </ThemedText>
                 </ThemedView>
               </Pressable>

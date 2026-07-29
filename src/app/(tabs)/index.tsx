@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { StarRating } from '@/components/star-rating';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -36,12 +37,6 @@ export default function HomeScreen() {
     }, [load])
   );
 
-  async function startCategoryPractice(categoryId: number) {
-    if (!token) return;
-    const attempt = await api.createAttempt(token, { mode: 'CATEGORY_PRACTICE', categoryIds: [categoryId] });
-    router.push(`/quiz/${attempt.id}`);
-  }
-
   async function startFullPaper(questionPaperId: number) {
     if (!token) return;
     const attempt = await api.createAttempt(token, { mode: 'FULL_PAPER', questionPaperId });
@@ -55,6 +50,8 @@ export default function HomeScreen() {
       </ThemedView>
     );
   }
+
+  const continueLearning = data?.continueLearning ?? null;
 
   return (
     <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -82,19 +79,32 @@ export default function HomeScreen() {
             </Pressable>
           )}
 
+          {continueLearning && !continueLearning.allCompleted && (
+            <Pressable onPress={() => router.push(`/stage/${continueLearning.stageId}`)}>
+              <ThemedView type="backgroundElement" style={styles.card}>
+                <ThemedText type="subtitle">Continue Learning</ThemedText>
+                <ThemedText>{continueLearning.foodWorldName ?? continueLearning.categoryName}</ThemedText>
+                <ThemedText themeColor="textSecondary">
+                  Stage {continueLearning.stageNumber} · {continueLearning.questionProgress.completed} /{' '}
+                  {continueLearning.questionProgress.total} answered
+                </ThemedText>
+              </ThemedView>
+            </Pressable>
+          )}
+
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Quick Practice
           </ThemedText>
           <ThemedView style={styles.tileRow}>
-            {data?.categories.map((category) => (
+            {data?.categoryProgress.map((category) => (
               <Pressable
                 key={category.id}
-                onPress={() => startCategoryPractice(category.id)}
+                onPress={() => router.push(`/category/${category.id}`)}
                 style={styles.tileWrapper}>
                 <ThemedView type="backgroundElement" style={styles.tile}>
-                  <ThemedText type="smallBold">{category.name}</ThemedText>
+                  <ThemedText type="smallBold">{category.foodWorldName ?? category.name}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {category.questionCount} questions
+                    {category.completedStages}/{category.totalStages} stages
                   </ThemedText>
                 </ThemedView>
               </Pressable>
@@ -116,6 +126,25 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </ThemedView>
+
+          {data && data.recentAchievements.length > 0 && (
+            <>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>
+                Recent Achievements
+              </ThemedText>
+              <ThemedView style={styles.tileRow}>
+                {data.recentAchievements.map((achievement) => (
+                  <ThemedView key={achievement.stageId} type="backgroundElement" style={styles.tile}>
+                    <ThemedText type="smallBold">{achievement.foodWorldName ?? achievement.categoryName}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Stage {achievement.stageNumber}
+                    </ThemedText>
+                    <StarRating count={achievement.starsEarned} size={14} />
+                  </ThemedView>
+                ))}
+              </ThemedView>
+            </>
+          )}
         </SafeAreaView>
       </ThemedView>
     </ScrollView>
