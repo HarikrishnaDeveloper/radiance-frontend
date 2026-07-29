@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { COLORS } from './colors';
 import { loginStyles as styles } from './login-styles';
+import { Toast, type ToastData } from '../toast';
 
 type Props = {
   phone: string;
@@ -15,7 +16,8 @@ type Props = {
   onPasswordChange: (text: string) => void;
   showPassword: boolean;
   onToggleShowPassword: () => void;
-  error: string | null;
+  toast: ToastData | null;
+  onHideToast: () => void;
   submitting: boolean;
   onLogin: () => void;
   onForgotPassword: () => void;
@@ -29,7 +31,8 @@ export function WelcomeBackScreen({
   onPasswordChange,
   showPassword,
   onToggleShowPassword,
-  error,
+  toast,
+  onHideToast,
   submitting,
   onLogin,
   onForgotPassword,
@@ -37,7 +40,11 @@ export function WelcomeBackScreen({
 }: Props) {
   return (
     <View style={styles.loginContainer}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.select({ ios: 'padding', default: undefined })}>
+      <Toast toast={toast} onHide={onHideToast} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.select({ ios: 'padding', default: 'height' })}
+        keyboardVerticalOffset={Platform.select({ ios: 0, default: 0 })}>
         <ScrollView contentContainerStyle={styles.loginScrollContent} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <SafeAreaView style={styles.safeArea}>
             <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
@@ -95,18 +102,12 @@ export function WelcomeBackScreen({
                 </View>
               </View>
 
-              {error && (
-                <Animated.View entering={FadeIn.duration(200)} style={styles.errorBox}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </Animated.View>
-              )}
-
               <Pressable onPress={onLogin} disabled={submitting} style={({ pressed }) => [{ marginTop: 32 }, pressed && styles.buttonPressed]}>
                 <LinearGradient
                   colors={[COLORS.purple, COLORS.purpleDark]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.purpleButton}>
+                  style={[styles.purpleButton, { marginTop: 28 }]}>
                   <Text style={styles.purpleButtonText}>{submitting ? 'Logging in…' : 'Login'}</Text>
                   <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} />
                 </LinearGradient>

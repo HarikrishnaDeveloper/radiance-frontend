@@ -11,6 +11,7 @@ import { OTP_LENGTH, RESEND_TIMER } from '@/components/login/login-styles';
 import { SignupPhoneScreen } from '@/components/login/signup-phone-screen';
 import { VerifyOtpScreen } from '@/components/login/verify-otp-screen';
 import { WelcomeBackScreen } from '@/components/login/welcome-back-screen';
+import type { ToastData } from '@/components/toast';
 import { ApiError, useAuth } from '@/context/auth-context';
 
 type Screen =
@@ -43,6 +44,7 @@ export default function LoginScreen() {
   const [resendTimer, setResendTimer] = useState(0);
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [resetOtpCode, setResetOtpCode] = useState('');
@@ -73,19 +75,20 @@ export default function LoginScreen() {
   async function handleLogin() {
     const rawPhone = phone.trim().replace(/\s/g, '');
     if (rawPhone.length < 10) {
-      setError('Enter a valid 10-digit mobile number');
+      setToast({ type: 'error', message: 'Enter a valid 10-digit mobile number' });
       return;
     }
     if (!password) {
-      setError('Enter your password');
+      setToast({ type: 'error', message: 'Enter your password' });
       return;
     }
-    setError(null);
+    setToast(null);
     setSubmitting(true);
     try {
       await login(`+91${rawPhone}`, password);
+      setToast({ type: 'success', message: 'Logged in successfully' });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not reach the server');
+      setToast({ type: 'error', message: e instanceof ApiError ? e.message : 'Could not reach the server' });
     } finally {
       setSubmitting(false);
     }
@@ -230,6 +233,7 @@ export default function LoginScreen() {
 
   function goBackToLogin() {
     setError(null);
+    setToast(null);
     setPassword('');
     setScreen('login');
   }
@@ -243,7 +247,8 @@ export default function LoginScreen() {
         onPasswordChange={setPassword}
         showPassword={showPassword}
         onToggleShowPassword={() => setShowPassword((v) => !v)}
-        error={error}
+        toast={toast}
+        onHideToast={() => setToast(null)}
         submitting={submitting}
         onLogin={handleLogin}
         onForgotPassword={goToForgotPassword}

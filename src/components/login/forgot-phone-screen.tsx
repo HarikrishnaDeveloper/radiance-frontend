@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,14 +28,16 @@ export function ForgotPhoneScreen({ phone, onPhoneChange, error, onBack, onSendC
             </View>
 
             <Animated.View entering={FadeIn.duration(400)} style={styles.stepIconWrap}>
-              <View style={[styles.stepIconCircle, { backgroundColor: COLORS.purpleSoft }]}>
-                <Text style={styles.stepIconEmoji}>🔑</Text>
-              </View>
+              <Image
+                style={styles.otpHeroImage}
+                source={require('../../../assets/login/forgetpassword.png')}
+                contentFit="contain"
+              />
             </Animated.View>
 
             <Animated.View entering={FadeInUp.duration(400)} style={styles.content}>
-              <Text style={styles.title}>Reset Password</Text>
-              <Text style={styles.subtitle}>Enter your mobile number to receive a verification code</Text>
+              <Text style={[styles.title, { textAlign: 'center' }]}>Forgot Password?</Text>
+              <Text style={styles.subtitle}>Enter your registered mobile number</Text>
 
               <View style={[styles.inputGroup, { marginTop: 28 }]}>
                 <View style={styles.inputRow}>
@@ -66,9 +69,15 @@ export function ForgotPhoneScreen({ phone, onPhoneChange, error, onBack, onSendC
               <Pressable
                 onPress={onSendCode}
                 style={({ pressed }) => [styles.navyButton, pressed && styles.buttonPressed]}>
-                <Text style={styles.navyButtonText}>Send Code</Text>
+                <Text style={styles.navyButtonText}>Send OTP</Text>
                 <Text style={styles.navyButtonArrow}>→</Text>
               </Pressable>
+
+              <View style={styles.signUpRow}>
+                <Pressable onPress={onBack}>
+                  <Text style={styles.signUpLink}>Back to Login</Text>
+                </Pressable>
+              </View>
             </Animated.View>
           </SafeAreaView>
         </ScrollView>
