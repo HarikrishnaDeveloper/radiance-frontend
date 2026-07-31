@@ -9,6 +9,8 @@ import type {
   CategorySummary,
   CompleteAttemptResponse,
   ContinueLearning,
+  DailyChallengeResponse,
+  DailyChallengeSubmitResponse,
   DashboardResponse,
   PaperSummary,
   StageDetailResponse,
@@ -133,6 +135,15 @@ export const api = {
     }),
 
   continueLearning: (token: string) => request<ContinueLearning>('/api/users/me/continue', { token }),
+
+  dailyChallenge: (token: string) => request<DailyChallengeResponse>('/api/daily-challenge', { token }),
+
+  submitDailyChallenge: (token: string, answers: { questionId: number; selectedOptionId: number | null }[]) =>
+    request<DailyChallengeSubmitResponse>('/api/daily-challenge/submit', {
+      method: 'POST',
+      token,
+      body: { answers },
+    }),
 };
 
 export type { AttemptMode };

@@ -99,8 +99,22 @@ export type ContinueLearning =
       resumeUrl: string;
     };
 
+export type UserStats = {
+  accuracy: number;
+  questionsSolved: number;
+};
+
+export type TodaysFocus = {
+  answeredToday: boolean;
+  dailyChallenge: { completed: boolean; starsEarned: number | null };
+};
+
 export type DashboardResponse = {
   streak: number;
+  longestStreak: number;
+  stats: UserStats;
+  recentActivity: boolean[];
+  todaysFocus: TodaysFocus;
   continueAttempt: ContinueAttempt | null;
   categories: CategorySummary[];
   papers: PaperSummary[];
@@ -158,6 +172,29 @@ export type StageSubmitResponse = {
   starsEarned: number;
   nextStageUnlocked: boolean;
   nextStageId: number | null;
+};
+
+export type DailyChallengeProgress = {
+  completedQuestions: number;
+  correctAnswers: number;
+  accuracy: number;
+  starsEarned: number;
+  completedAt: string | null;
+};
+
+export type DailyChallengeResponse = {
+  id: number;
+  questionCount: number;
+  questions: SafeQuestion[];
+  progress: DailyChallengeProgress | null;
+};
+
+export type DailyChallengeSubmitResponse = {
+  challengeId: number;
+  completedQuestions: number;
+  correctAnswers: number;
+  accuracy: number;
+  starsEarned: number;
 };
 
 export type AttemptAnswerState = {
