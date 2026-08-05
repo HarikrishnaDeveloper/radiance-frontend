@@ -229,8 +229,9 @@ const localStyles = StyleSheet.create({
     zIndex: 1,
   },
   illustrationImage: {
-    width: 380,
-    height: 380,
+    width: '85%',
+    maxWidth: 320,
+    aspectRatio: 1,
   },
   strengthSection: {
     marginTop: 12,

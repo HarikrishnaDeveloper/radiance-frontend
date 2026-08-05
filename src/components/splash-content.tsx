@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useAnimatedProps, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { TextInput } from 'react-native';
 
@@ -61,7 +61,7 @@ export function SplashContent() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
+      <ScrollView style={styles.contentScroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
         <Image
           style={styles.bookImage}
           source={require('../../assets/splashscreen/book.png')}
@@ -106,7 +106,7 @@ export function SplashContent() {
           <View style={styles.statDivider} />
           <Stat glyph="🏆" line1="Mock" line2="Tests" />
         </View>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Made with Love for UPSC Aspirants</Text>
@@ -124,14 +124,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'space-between',
   },
+  contentScroll: {
+    flex: 1,
+  },
   content: {
     alignItems: 'center',
     paddingHorizontal: 28,
     paddingTop: 12,
   },
   bookImage: {
-    width: 250,
-    height: 250,
+    width: '70%',
+    maxWidth: 250,
+    aspectRatio: 1,
   },
   title: {
     fontSize: 30,

@@ -123,6 +123,26 @@ export type DashboardResponse = {
   recentAchievements: RecentAchievement[];
 };
 
+export type StreakDayStatus = 'done' | 'today' | 'future' | 'missed';
+
+export type StreakCalendarDay = { day: number; hasActivity: boolean; isToday: boolean } | null;
+
+export type StreakResponse = {
+  streak: number;
+  longestStreak: number;
+  totalActiveDays: number;
+  daysKeptPercent: number;
+  freezesAvailable: number;
+  freezesUsed: number;
+  nextMilestone: number;
+  weekStrip: { label: string; status: StreakDayStatus }[];
+  calendar: {
+    year: number;
+    month: number;
+    days: StreakCalendarDay[];
+  };
+};
+
 export type AttemptHistoryItem = {
   id: number;
   mode: AttemptMode;
@@ -141,11 +161,14 @@ export type SafeOption = {
   text: string;
 };
 
+export type QuestionDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
+
 export type SafeQuestion = {
   id: number;
   text: string;
   questionImage?: string | null;
   categoryId: number;
+  difficulty: QuestionDifficulty;
   category: { id: number; name: string };
   questionPaper?: { year: number } | null;
   options: SafeOption[];
@@ -170,8 +193,31 @@ export type StageSubmitResponse = {
   correctAnswers: number;
   accuracy: number;
   starsEarned: number;
+  firstCompletion: boolean;
   nextStageUnlocked: boolean;
   nextStageId: number | null;
+  nextStageNumber: number | null;
+};
+
+export type StageResultQuestion = {
+  id: number;
+  text: string;
+  questionImage: string | null;
+  explanation: string | null;
+  options: { id: number; label: string; text: string; isCorrect: boolean }[];
+  selectedOptionId: number | null;
+  isCorrect: boolean;
+};
+
+export type StageResultsResponse = {
+  stageId: number;
+  stageNumber: number;
+  foodWorldName: string | null;
+  category: { id: number; name: string };
+  accuracy: number;
+  correctAnswers: number;
+  completedQuestions: number;
+  questions: StageResultQuestion[];
 };
 
 export type DailyChallengeProgress = {

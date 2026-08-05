@@ -138,8 +138,9 @@ const localStyles = StyleSheet.create({
     zIndex: 1,
   },
   illustrationImage: {
-    width: 320,
-    height: 320,
+    width: '80%',
+    maxWidth: 280,
+    aspectRatio: 1,
     top: -20,
   },
 });

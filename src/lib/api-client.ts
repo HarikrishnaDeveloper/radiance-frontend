@@ -14,7 +14,9 @@ import type {
   DashboardResponse,
   PaperSummary,
   StageDetailResponse,
+  StageResultsResponse,
   StageSubmitResponse,
+  StreakResponse,
   SubmitAnswerResponse,
 } from '@/types/api';
 
@@ -34,8 +36,11 @@ async function request<T>(
   options: { method?: string; token?: string | null; body?: unknown } = {}
 ): Promise<T> {
   const { method = 'GET', token, body } = options;
+  const url = `${BASE_URL}${path}`;
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  console.log(`[API] → ${method} ${url}`, body !== undefined ? { body } : '');
+
+  const response = await fetch(url, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -46,6 +51,8 @@ async function request<T>(
 
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
+
+  console.log(`[API] ← ${response.status} ${method} ${url}`, data);
 
   if (!response.ok) {
     throw new ApiError(response.status, data?.error ?? 'Request failed');
@@ -85,6 +92,8 @@ export const api = {
     }),
 
   dashboard: (token: string) => request<DashboardResponse>('/api/dashboard', { token }),
+
+  streak: (token: string) => request<StreakResponse>('/api/streak', { token }),
 
   categories: (token: string) => request<CategorySummary[]>('/api/categories', { token }),
 
@@ -133,6 +142,9 @@ export const api = {
       token,
       body: { answers },
     }),
+
+  stageResults: (token: string, stageId: number) =>
+    request<StageResultsResponse>(`/api/stages/${stageId}/results`, { token }),
 
   continueLearning: (token: string) => request<ContinueLearning>('/api/users/me/continue', { token }),
 

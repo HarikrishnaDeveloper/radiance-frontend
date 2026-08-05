@@ -52,8 +52,9 @@ export const loginStyles = StyleSheet.create({
     transform: [{ scale: 2 }],
   },
   otpHeroImage: {
-    width: 250,
-    height: 250,
+    width: '55%',
+    maxWidth: 250,
+    aspectRatio: 1,
   },
 
   // ─── Content ───
@@ -156,7 +157,7 @@ export const loginStyles = StyleSheet.create({
   loginScrollContent: { flexGrow: 1 },
 
   loginHero: { alignItems: 'center', paddingTop: 10 },
-  loginBookImage: { width: 350, height: 350, top: 30 },
+  loginBookImage: { width: '90%', maxWidth: 350, aspectRatio: 1, top: 30, alignSelf: 'center' },
   loginWelcome: { fontSize: 30, fontWeight: '600', color: COLORS.navy, marginTop: 2, textAlign: 'center', },
   fieldLabel: { fontSize: 14, fontWeight: '700', color: COLORS.navy, marginBottom: 8 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

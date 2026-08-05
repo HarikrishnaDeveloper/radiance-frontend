@@ -62,9 +62,9 @@ export default function HomeScreen() {
       <LinearGradient colors={[COLORS.purple700, COLORS.purple900]} style={styles.header}>
         <SafeAreaView edges={['top']}>
           <View style={styles.headerTop}>
-            <View>
+            <View style={styles.greetTextWrap}>
               <Text style={styles.greetLabel}>{greeting()}</Text>
-              <Text style={styles.greetName}>{user?.name ?? user?.username}</Text>
+              <Text style={styles.greetName} numberOfLines={1}>{user?.name ?? user?.username}</Text>
             </View>
             <View style={styles.iconPill}>
               <Ionicons name="notifications-outline" size={19} color={COLORS.white} />
@@ -73,7 +73,7 @@ export default function HomeScreen() {
           <Text style={styles.headerSub}>Let&apos;s achieve your UPSC goal today.</Text>
 
           {data.streak > 0 && (
-            <View style={styles.streakCard}>
+            <Pressable onPress={() => router.push('/streak')} style={styles.streakCard}>
               <View style={styles.streakFlameWrap}>
                 <Ionicons name="flame" size={21} color={COLORS.gold} />
               </View>
@@ -91,7 +91,7 @@ export default function HomeScreen() {
                   <View key={i} style={[styles.pip, active && styles.pipOn]} />
                 ))}
               </View>
-            </View>
+            </Pressable>
           )}
         </SafeAreaView>
       </LinearGradient>
@@ -279,7 +279,7 @@ export default function HomeScreen() {
       {data.recentAchievements.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Achievements</Text>
-          <View style={styles.hscroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hscroll}>
             {data.recentAchievements.map((a) => (
               <View key={a.stageId} style={styles.achievementCard}>
                 <Text style={styles.ringName} numberOfLines={1}>
@@ -289,7 +289,7 @@ export default function HomeScreen() {
                 <StarRating count={a.starsEarned} size={14} />
               </View>
             ))}
-          </View>
+          </ScrollView>
         </View>
       )}
 
@@ -306,6 +306,7 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 6 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  greetTextWrap: { flex: 1, marginRight: 12 },
   greetLabel: { fontSize: 13, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
   greetName: { fontSize: 22, fontWeight: '800', color: COLORS.white, marginTop: 2 },
   iconPill: {

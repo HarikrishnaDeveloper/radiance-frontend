@@ -119,7 +119,7 @@ export default function DailyChallengeScreen() {
               {currentQuestion.category.name}
               {currentQuestion.questionPaper ? ` • ${currentQuestion.questionPaper.year}` : ''}
             </ThemedText>
-            <ScrollView style={styles.questionScroll} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
               <ThemedText style={styles.questionText}>{currentQuestion.text}</ThemedText>
               {currentQuestion.questionImage && (
                 <Image
@@ -128,26 +128,26 @@ export default function DailyChallengeScreen() {
                   resizeMode="contain"
                 />
               )}
-            </ScrollView>
 
-            <ThemedView style={styles.options}>
-              {currentQuestion.options.map((option) => {
-                const isSelected = option.id === selectedOptionId;
-                return (
-                  <Pressable
-                    key={option.id}
-                    onPress={() => pickOption(option.id)}
-                    disabled={submitting}
-                    style={[
-                      styles.option,
-                      { backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement },
-                    ]}>
-                    <ThemedText type="smallBold">{option.label}</ThemedText>
-                    <ThemedText style={styles.optionText}>{option.text}</ThemedText>
-                  </Pressable>
-                );
-              })}
-            </ThemedView>
+              <ThemedView style={styles.options}>
+                {currentQuestion.options.map((option) => {
+                  const isSelected = option.id === selectedOptionId;
+                  return (
+                    <Pressable
+                      key={option.id}
+                      onPress={() => pickOption(option.id)}
+                      disabled={submitting}
+                      style={[
+                        styles.option,
+                        { backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement },
+                      ]}>
+                      <ThemedText type="smallBold">{option.label}</ThemedText>
+                      <ThemedText style={styles.optionText}>{option.text}</ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ThemedView>
+            </ScrollView>
 
             <ThemedView style={styles.footer}>
               <Pressable onPress={() => advance(null)} disabled={submitting} style={styles.skipButton}>
@@ -190,8 +190,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.four,
     gap: Spacing.three,
   },
-  questionScroll: {
-    maxHeight: 280,
+  contentScroll: {
+    flex: 1,
   },
   questionText: {
     fontSize: 20,
@@ -207,6 +207,7 @@ const styles = StyleSheet.create({
   },
   options: {
     gap: Spacing.two,
+    marginTop: Spacing.three,
   },
   option: {
     borderRadius: Spacing.three,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 'auto',
+    paddingTop: Spacing.three,
     marginBottom: Spacing.four,
   },
   skipButton: {

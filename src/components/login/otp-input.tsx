@@ -1,11 +1,19 @@
 import { useRef, useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { TextInput, View, useWindowDimensions } from 'react-native';
 
 import { loginStyles as styles, OTP_LENGTH } from './login-styles';
+
+const CONTENT_HORIZONTAL_PADDING = 28;
+const OTP_GAP = 12;
+const MAX_OTP_BOX_WIDTH = 46;
 
 export function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const refs = useRef<(TextInput | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const { width: windowWidth } = useWindowDimensions();
+
+  const availableWidth = windowWidth - CONTENT_HORIZONTAL_PADDING * 2 - OTP_GAP * (OTP_LENGTH - 1);
+  const boxWidth = Math.min(MAX_OTP_BOX_WIDTH, Math.floor(availableWidth / OTP_LENGTH));
 
   function handleChange(text: string, index: number) {
     const newValue = value.split('');
@@ -49,6 +57,7 @@ export function OtpInput({ value, onChange }: { value: string; onChange: (v: str
           onBlur={() => setFocusedIndex((f) => (f === i ? null : f))}
           style={[
             styles.otpBox,
+            { width: boxWidth },
             value[i] ? styles.otpBoxFilled : null,
             focusedIndex === i && !value[i] ? styles.otpBoxFocused : null,
           ]}
