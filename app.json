@@ -15,7 +15,8 @@
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./logo.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.hari1014129.radiencefrontend"
     },
     "web": {
       "output": "static",
@@ -39,6 +40,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a43f59f6-d74d-42da-9b4b-4baa9e26579e"
+      }
     }
   }
 }
