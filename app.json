@@ -16,7 +16,8 @@
         "foregroundImage": "./logo.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hari1014129.radiencefrontend"
+      "package": "com.hari1014129.radiencefrontend",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",

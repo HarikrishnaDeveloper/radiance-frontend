@@ -56,6 +56,9 @@ export default function HomeScreen() {
   }
 
   const continueLearning = data.continueLearning;
+  const suggestedCategory = continueLearning.allCompleted
+    ? data.categoryProgress.find((c) => c.progress < 100) ?? data.categoryProgress[0]
+    : null;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -72,27 +75,29 @@ export default function HomeScreen() {
           </View>
           <Text style={styles.headerSub}>Let&apos;s achieve your UPSC goal today.</Text>
 
-          {data.streak > 0 && (
-            <Pressable onPress={() => router.push('/streak')} style={styles.streakCard}>
-              <View style={styles.streakFlameWrap}>
-                <Ionicons name="flame" size={21} color={COLORS.gold} />
-              </View>
-              <View>
+          <Pressable onPress={() => router.push('/streak')} style={styles.streakCard}>
+            <View style={styles.streakFlameWrap}>
+              <Ionicons name="flame" size={21} color={data.streak > 0 ? COLORS.gold : 'rgba(255,255,255,0.45)'} />
+            </View>
+            <View>
+              {data.streak > 0 ? (
                 <View style={styles.streakDaysRow}>
                   <Text style={styles.streakNum}>{data.streak}</Text>
                   <Text style={styles.streakUnit}>Day Streak</Text>
                 </View>
-                {data.longestStreak > data.streak && (
-                  <Text style={styles.streakCaption}>Best streak: {data.longestStreak} days</Text>
-                )}
-              </View>
-              <View style={styles.streakPips}>
-                {data.recentActivity.map((active, i) => (
-                  <View key={i} style={[styles.pip, active && styles.pipOn]} />
-                ))}
-              </View>
-            </Pressable>
-          )}
+              ) : (
+                <Text style={styles.streakStartText}>Start your streak today!</Text>
+              )}
+              {data.longestStreak > data.streak && (
+                <Text style={styles.streakCaption}>Best streak: {data.longestStreak} days</Text>
+              )}
+            </View>
+            <View style={styles.streakPips}>
+              {data.recentActivity.map((active, i) => (
+                <View key={i} style={[styles.pip, active && styles.pipOn]} />
+              ))}
+            </View>
+          </Pressable>
         </SafeAreaView>
       </LinearGradient>
 
@@ -134,6 +139,30 @@ export default function HomeScreen() {
               </View>
               <View style={styles.heroCta}>
                 <Text style={styles.heroCtaText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={15} color={COLORS.purpleDark} />
+              </View>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      ) : suggestedCategory ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Start Something New</Text>
+          <Pressable onPress={() => router.push(`/category/${suggestedCategory.id}`)}>
+            <LinearGradient colors={[COLORS.purple, COLORS.purpleDark]} style={styles.heroCard}>
+              <Text style={styles.heroEyebrow}>Suggested for you</Text>
+              <View style={styles.heroTop}>
+                <View style={styles.heroEmblem}>
+                  <Ionicons name="sparkles" size={24} color={COLORS.white} />
+                </View>
+                <View>
+                  <Text style={styles.heroTitle}>{suggestedCategory.foodWorldName ?? suggestedCategory.name}</Text>
+                  <Text style={styles.heroMeta}>
+                    {suggestedCategory.questionCount} Questions · {suggestedCategory.totalStages} Stages
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.heroCta}>
+                <Text style={styles.heroCtaText}>Start Learning</Text>
                 <Ionicons name="arrow-forward" size={15} color={COLORS.purpleDark} />
               </View>
             </LinearGradient>
@@ -343,6 +372,7 @@ const styles = StyleSheet.create({
   streakDaysRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
   streakNum: { fontSize: 19, fontWeight: '800', color: COLORS.white },
   streakUnit: { fontSize: 12.5, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
+  streakStartText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
   streakCaption: { fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: '500', marginTop: 2 },
   streakPips: { flexDirection: 'row', gap: 4, marginLeft: 'auto' },
   pip: { width: 6, height: 20, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.18)' },

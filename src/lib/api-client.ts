@@ -39,6 +39,7 @@ async function request<T>(
   const url = `${BASE_URL}${path}`;
 
   console.log(`[API] → ${method} ${url}`, body !== undefined ? { body } : '');
+  const start = Date.now();
 
   const response = await fetch(url, {
     method,
@@ -51,8 +52,9 @@ async function request<T>(
 
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
+  const elapsedMs = Date.now() - start;
 
-  console.log(`[API] ← ${response.status} ${method} ${url}`, data);
+  console.log(`[API] ← ${response.status} ${method} ${url} (${elapsedMs}ms)`, data);
 
   if (!response.ok) {
     throw new ApiError(response.status, data?.error ?? 'Request failed');
@@ -131,6 +133,13 @@ export const api = {
 
   stageDetail: (token: string, stageId: number) =>
     request<StageDetailResponse>(`/api/stages/${stageId}`, { token }),
+
+  checkStageAnswer: (token: string, stageId: number, questionId: number, selectedOptionId: number | null) =>
+    request<SubmitAnswerResponse>(`/api/stages/${stageId}/answers`, {
+      method: 'POST',
+      token,
+      body: { questionId, selectedOptionId },
+    }),
 
   submitStage: (
     token: string,
