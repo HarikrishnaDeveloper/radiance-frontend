@@ -2,7 +2,6 @@ import type {
   AttemptDetailResponse,
   AttemptHistoryItem,
   AttemptMode,
-  AttemptResultsResponse,
   AuthResponse,
   AuthUser,
   CategoryDetailResponse,
@@ -19,6 +18,8 @@ import type {
   StreakResponse,
   SubmitAnswerResponse,
 } from '@/types/api';
+
+import { fetchWithCache, invalidateCache, invalidateCacheByPrefix, clearCache } from './data-cache';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
@@ -38,7 +39,9 @@ async function request<T>(
   const { method = 'GET', token, body } = options;
   const url = `${BASE_URL}${path}`;
 
-  console.log(`[API] → ${method} ${url}`, body !== undefined ? { body } : '');
+  if (__DEV__) {
+    console.log(`[API] → ${method} ${url}`, body !== undefined ? { body } : '');
+  }
   const start = Date.now();
 
   const response = await fetch(url, {
@@ -52,9 +55,11 @@ async function request<T>(
 
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
-  const elapsedMs = Date.now() - start;
 
-  console.log(`[API] ← ${response.status} ${method} ${url} (${elapsedMs}ms)`, data);
+  if (__DEV__) {
+    const elapsedMs = Date.now() - start;
+    console.log(`[API] ← ${response.status} ${method} ${url} (${elapsedMs}ms)`, data);
+  }
 
   if (!response.ok) {
     throw new ApiError(response.status, data?.error ?? 'Request failed');
@@ -62,6 +67,30 @@ async function request<T>(
 
   return data as T;
 }
+
+// ─── Cache TTLs ─────────────────────────────────────────────────────────
+const CACHE_TTL = {
+  dashboard: 30_000,   // 30s — changes often (streak, today's focus)
+  categories: 60_000,  // 60s — rarely changes
+  papers: 120_000,     // 2min — almost never changes
+  categoryDetail: 60_000,
+  streak: 30_000,
+  dailyChallenge: 60_000,
+  attempts: 30_000,
+} as const;
+
+// ─── Cache keys ─────────────────────────────────────────────────────────
+const cacheKey = {
+  dashboard: 'dashboard',
+  categories: 'categories',
+  papers: 'papers',
+  categoryDetail: (id: number) => `categoryDetail:${id}`,
+  streak: 'streak',
+  dailyChallenge: 'dailyChallenge',
+  attempts: (completed?: boolean) => `attempts:${completed}`,
+  attempt: (id: number) => `attempt:${id}`,
+  stageDetail: (id: number) => `stageDetail:${id}`,
+} as const;
 
 export const api = {
   login: (username: string, password: string) =>
@@ -93,19 +122,67 @@ export const api = {
       body: details,
     }),
 
-  dashboard: (token: string) => request<DashboardResponse>('/api/dashboard', { token }),
+  // ─── Cached endpoints ───────────────────────────────────────────────
 
-  streak: (token: string) => request<StreakResponse>('/api/streak', { token }),
+  dashboard: (token: string, onUpdate?: (data: DashboardResponse) => void) =>
+    fetchWithCache<DashboardResponse>(
+      cacheKey.dashboard,
+      () => request<DashboardResponse>('/api/dashboard', { token }),
+      CACHE_TTL.dashboard,
+      onUpdate,
+    ),
 
-  categories: (token: string) => request<CategorySummary[]>('/api/categories', { token }),
+  streak: (token: string, onUpdate?: (data: StreakResponse) => void) =>
+    fetchWithCache<StreakResponse>(
+      cacheKey.streak,
+      () => request<StreakResponse>('/api/streak', { token }),
+      CACHE_TTL.streak,
+      onUpdate,
+    ),
 
-  papers: (token: string) => request<PaperSummary[]>('/api/papers', { token }),
+  categories: (token: string, onUpdate?: (data: CategorySummary[]) => void) =>
+    fetchWithCache<CategorySummary[]>(
+      cacheKey.categories,
+      () => request<CategorySummary[]>('/api/categories', { token }),
+      CACHE_TTL.categories,
+      onUpdate,
+    ),
+
+  papers: (token: string, onUpdate?: (data: PaperSummary[]) => void) =>
+    fetchWithCache<PaperSummary[]>(
+      cacheKey.papers,
+      () => request<PaperSummary[]>('/api/papers', { token }),
+      CACHE_TTL.papers,
+      onUpdate,
+    ),
 
   attemptHistory: (token: string, completed?: boolean) =>
-    request<AttemptHistoryItem[]>(
-      `/api/attempts${completed === undefined ? '' : `?completed=${completed}`}`,
-      { token }
+    fetchWithCache<AttemptHistoryItem[]>(
+      cacheKey.attempts(completed),
+      () => request<AttemptHistoryItem[]>(
+        `/api/attempts${completed === undefined ? '' : `?completed=${completed}`}`,
+        { token }
+      ),
+      CACHE_TTL.attempts,
     ),
+
+  categoryDetail: (token: string, categoryId: number, onUpdate?: (data: CategoryDetailResponse) => void) =>
+    fetchWithCache<CategoryDetailResponse>(
+      cacheKey.categoryDetail(categoryId),
+      () => request<CategoryDetailResponse>(`/api/categories/${categoryId}`, { token }),
+      CACHE_TTL.categoryDetail,
+      onUpdate,
+    ),
+
+  dailyChallenge: (token: string, onUpdate?: (data: DailyChallengeResponse) => void) =>
+    fetchWithCache<DailyChallengeResponse>(
+      cacheKey.dailyChallenge,
+      () => request<DailyChallengeResponse>('/api/daily-challenge', { token }),
+      CACHE_TTL.dailyChallenge,
+      onUpdate,
+    ),
+
+  // ─── Non-cached (mutations & one-off reads) ─────────────────────────
 
   createAttempt: (
     token: string,
@@ -122,14 +199,15 @@ export const api = {
       body: { questionId, selectedOptionId },
     }),
 
-  completeAttempt: (token: string, attemptId: number) =>
-    request<CompleteAttemptResponse>(`/api/attempts/${attemptId}/complete`, { method: 'POST', token }),
+  completeAttempt: (token: string, attemptId: number) => {
+    // Invalidate caches that change after completing an attempt
+    invalidateCache(cacheKey.dashboard, cacheKey.streak);
+    invalidateCacheByPrefix('attempts');
+    return request<CompleteAttemptResponse>(`/api/attempts/${attemptId}/complete`, { method: 'POST', token });
+  },
 
   getResults: (token: string, attemptId: number) =>
-    request<AttemptResultsResponse>(`/api/attempts/${attemptId}/results`, { token }),
-
-  categoryDetail: (token: string, categoryId: number) =>
-    request<CategoryDetailResponse>(`/api/categories/${categoryId}`, { token }),
+    request<AttemptDetailResponse>(`/api/attempts/${attemptId}/results`, { token }),
 
   stageDetail: (token: string, stageId: number) =>
     request<StageDetailResponse>(`/api/stages/${stageId}`, { token }),
@@ -145,26 +223,35 @@ export const api = {
     token: string,
     stageId: number,
     answers: { questionId: number; selectedOptionId: number | null }[]
-  ) =>
-    request<StageSubmitResponse>(`/api/stages/${stageId}/submit`, {
+  ) => {
+    // Invalidate caches that change after submitting a stage
+    invalidateCache(cacheKey.dashboard, cacheKey.streak, cacheKey.categories);
+    invalidateCacheByPrefix('categoryDetail');
+    return request<StageSubmitResponse>(`/api/stages/${stageId}/submit`, {
       method: 'POST',
       token,
       body: { answers },
-    }),
+    });
+  },
 
   stageResults: (token: string, stageId: number) =>
     request<StageResultsResponse>(`/api/stages/${stageId}/results`, { token }),
 
   continueLearning: (token: string) => request<ContinueLearning>('/api/users/me/continue', { token }),
 
-  dailyChallenge: (token: string) => request<DailyChallengeResponse>('/api/daily-challenge', { token }),
-
-  submitDailyChallenge: (token: string, answers: { questionId: number; selectedOptionId: number | null }[]) =>
-    request<DailyChallengeSubmitResponse>('/api/daily-challenge/submit', {
+  submitDailyChallenge: (token: string, answers: { questionId: number; selectedOptionId: number | null }[]) => {
+    invalidateCache(cacheKey.dashboard, cacheKey.dailyChallenge, cacheKey.streak);
+    return request<DailyChallengeSubmitResponse>('/api/daily-challenge/submit', {
       method: 'POST',
       token,
       body: { answers },
-    }),
+    });
+  },
+
+  // ─── Cache management ───────────────────────────────────────────────
+
+  /** Clear all cached data (call on logout) */
+  clearAllCache: clearCache,
 };
 
 export type { AttemptMode };

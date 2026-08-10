@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StarRating } from '@/components/star-rating';
@@ -25,7 +26,9 @@ export default function DailyChallengeScreen() {
 
   useEffect(() => {
     if (!token) return;
-    api.dailyChallenge(token).then(setChallenge);
+    api.dailyChallenge(token, (freshChallenge) => {
+      setChallenge(freshChallenge);
+    }).then(setChallenge).catch(() => {});
   }, [token]);
 
   const currentQuestion = useMemo(
@@ -125,7 +128,9 @@ export default function DailyChallengeScreen() {
                 <Image
                   source={{ uri: `${process.env.EXPO_PUBLIC_API_URL}${currentQuestion.questionImage}` }}
                   style={styles.questionImage}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  transition={200}
+                  priority="high"
                 />
               )}
 

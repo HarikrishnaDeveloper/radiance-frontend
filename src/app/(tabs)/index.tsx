@@ -27,13 +27,18 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const dashboard = await api.dashboard(token);
+      const dashboard = await api.dashboard(token, (freshData) => {
+        setData(freshData);
+      });
       setData(dashboard);
       setError(null);
     } catch {
-      setError('Could not load your dashboard');
+      // Only show error if we have no cache data at all
+      if (!data) {
+        setError('Could not load your dashboard');
+      }
     }
-  }, [token]);
+  }, [token, data]);
 
   useFocusEffect(
     useCallback(() => {

@@ -23,10 +23,17 @@ export default function JourneyScreen() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const [categoriesRes, papersRes] = await Promise.all([api.categories(token), api.papers(token)]);
-    setCategories(categoriesRes);
-    setPapers(papersRes);
-    setSelectedCategoryId((prev) => prev ?? categoriesRes[0]?.id ?? null);
+    try {
+      const [categoriesRes, papersRes] = await Promise.all([
+        api.categories(token, (freshCats) => setCategories(freshCats)),
+        api.papers(token, (freshPapers) => setPapers(freshPapers))
+      ]);
+      setCategories(categoriesRes);
+      setPapers(papersRes);
+      setSelectedCategoryId((prev) => prev ?? categoriesRes[0]?.id ?? null);
+    } catch {
+      // Keep displaying old data if available
+    }
   }, [token]);
 
   useFocusEffect(
@@ -38,8 +45,14 @@ export default function JourneyScreen() {
   const loadCategoryDetail = useCallback(
     async (categoryId: number) => {
       if (!token) return;
-      const detail = await api.categoryDetail(token, categoryId);
-      setCategoryDetail(detail);
+      try {
+        const detail = await api.categoryDetail(token, categoryId, (freshDetail) => {
+          setCategoryDetail(freshDetail);
+        });
+        setCategoryDetail(detail);
+      } catch {
+        // Silent recovery
+      }
     },
     [token]
   );

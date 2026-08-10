@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { COLORS } from '@/constants/colors';
@@ -55,7 +56,8 @@ export default function StageResultsScreen() {
               <Image
                 source={{ uri: `${process.env.EXPO_PUBLIC_API_URL}${question.questionImage}` }}
                 style={styles.questionImage}
-                resizeMode="contain"
+                contentFit="contain"
+                transition={200}
               />
             )}
 

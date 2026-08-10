@@ -137,6 +137,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (refreshToken) {
       await api.logout(refreshToken).catch(() => undefined);
     }
+    api.clearAllCache();
     await clearSession();
     setToken(null);
     setRefreshToken(null);

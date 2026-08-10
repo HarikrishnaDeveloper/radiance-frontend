@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProgressRing } from '@/components/progress-ring';
@@ -10,7 +11,7 @@ import { StarRating } from '@/components/star-rating';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
-import type { QuestionDifficulty, StageDetailResponse, StageSubmitResponse, StreakResponse, SubmitAnswerResponse } from '@/types/api';
+import type { QuestionDifficulty, SafeQuestion, StageDetailResponse, StageSubmitResponse, StreakResponse, SubmitAnswerResponse } from '@/types/api';
 
 const XP_PER_CORRECT = 15;
 const STREAK_BONUS_XP = 20;
@@ -44,6 +45,60 @@ function sessionStarCount(pct: number) {
 }
 
 type AnswerRecord = { selectedOptionId: number | null; isCorrect: boolean };
+
+interface OptionProps {
+  option: { id: number; label: string; text: string };
+  isSelected: boolean;
+  isCorrectOption: boolean | null;
+  isWrongSelected: boolean | null;
+  disabled: boolean;
+  onPress: (id: number) => void;
+}
+
+const OptionButton = React.memo(({ option, isSelected, isCorrectOption, isWrongSelected, disabled, onPress }: OptionProps) => {
+  let borderColor: string = COLORS.grayBorder;
+  let backgroundColor: string = COLORS.white;
+  let letterBg: string = COLORS.loginBg;
+  let letterColor: string = COLORS.gray;
+
+  if (isCorrectOption) {
+    borderColor = COLORS.green;
+    backgroundColor = COLORS.greenSoft;
+    letterBg = COLORS.green;
+    letterColor = COLORS.white;
+  } else if (isWrongSelected) {
+    borderColor = COLORS.error;
+    backgroundColor = COLORS.errorBg;
+    letterBg = COLORS.error;
+    letterColor = COLORS.white;
+  } else if (isSelected) {
+    borderColor = COLORS.purple;
+    backgroundColor = COLORS.purpleSoft;
+    letterBg = COLORS.purple;
+    letterColor = COLORS.white;
+  }
+
+  const handlePress = () => onPress(option.id);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      style={[
+        styles.option,
+        { borderColor, backgroundColor },
+        disabled && !isSelected && !isCorrectOption && styles.optionDimmed
+      ]}
+    >
+      <View style={[styles.optionLetter, { backgroundColor: letterBg }]}>
+        <Text style={[styles.optionLetterText, { color: letterColor }]}>{option.label}</Text>
+      </View>
+      <Text style={styles.optionText}>{option.text}</Text>
+      {isCorrectOption && <Ionicons name="checkmark" size={18} color={COLORS.green} />}
+      {isWrongSelected && <Ionicons name="close" size={18} color={COLORS.error} />}
+    </Pressable>
+  );
+});
 
 export default function StageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -88,13 +143,19 @@ export default function StageScreen() {
   }, [currentQuestion, feedback]);
 
   const sessionTotal = answers.size;
-  const sessionCorrect = useMemo(() => [...answers.values()].filter((a) => a.isCorrect).length, [answers]);
+  const sessionCorrect = useMemo(() => {
+    let count = 0;
+    answers.forEach((a) => {
+      if (a.isCorrect) count++;
+    });
+    return count;
+  }, [answers]);
   const sessionPct = sessionTotal === 0 ? 100 : Math.round((sessionCorrect / sessionTotal) * 100);
 
-  function pickOption(optionId: number) {
+  const pickOption = useCallback((optionId: number) => {
     if (feedback || submitting) return;
     setSelectedOptionId(optionId);
-  }
+  }, [feedback, submitting]);
 
   async function checkAnswer() {
     if (!token || !stage || !currentQuestion || selectedOptionId === null || submitting || feedback) return;
@@ -340,7 +401,9 @@ export default function StageScreen() {
           <Image
             source={{ uri: `${process.env.EXPO_PUBLIC_API_URL}${currentQuestion.questionImage}` }}
             style={styles.questionImage}
-            resizeMode="contain"
+            contentFit="contain"
+            transition={200}
+            priority="high"
           />
         )}
 
@@ -350,40 +413,16 @@ export default function StageScreen() {
             const isCorrectOption = feedback && option.id === feedback.correctOptionId;
             const isWrongSelected = feedback && isSelected && !feedback.isCorrect;
 
-            let borderColor: string = COLORS.grayBorder;
-            let backgroundColor: string = COLORS.white;
-            let letterBg: string = COLORS.loginBg;
-            let letterColor: string = COLORS.gray;
-            if (isCorrectOption) {
-              borderColor = COLORS.green;
-              backgroundColor = COLORS.greenSoft;
-              letterBg = COLORS.green;
-              letterColor = COLORS.white;
-            } else if (isWrongSelected) {
-              borderColor = COLORS.error;
-              backgroundColor = COLORS.errorBg;
-              letterBg = COLORS.error;
-              letterColor = COLORS.white;
-            } else if (isSelected) {
-              borderColor = COLORS.purple;
-              backgroundColor = COLORS.purpleSoft;
-              letterBg = COLORS.purple;
-              letterColor = COLORS.white;
-            }
-
             return (
-              <Pressable
+              <OptionButton
                 key={option.id}
-                onPress={() => pickOption(option.id)}
+                option={option}
+                isSelected={isSelected}
+                isCorrectOption={!!isCorrectOption}
+                isWrongSelected={!!isWrongSelected}
                 disabled={!!feedback || submitting}
-                style={[styles.option, { borderColor, backgroundColor }, (!!feedback || submitting) && !isSelected && !isCorrectOption && styles.optionDimmed]}>
-                <View style={[styles.optionLetter, { backgroundColor: letterBg }]}>
-                  <Text style={[styles.optionLetterText, { color: letterColor }]}>{option.label}</Text>
-                </View>
-                <Text style={styles.optionText}>{option.text}</Text>
-                {isCorrectOption && <Ionicons name="checkmark" size={18} color={COLORS.green} />}
-                {isWrongSelected && <Ionicons name="close" size={18} color={COLORS.error} />}
-              </Pressable>
+                onPress={pickOption}
+              />
             );
           })}
         </View>

@@ -16,8 +16,14 @@ export default function ProgressScreen() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const dashboard = await api.dashboard(token);
-    setData(dashboard);
+    try {
+      const dashboard = await api.dashboard(token, (freshData) => {
+        setData(freshData);
+      });
+      setData(dashboard);
+    } catch {
+      // Keep displaying old data if available
+    }
   }, [token]);
 
   useFocusEffect(

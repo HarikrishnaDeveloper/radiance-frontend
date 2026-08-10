@@ -26,8 +26,14 @@ export default function PracticeScreen() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const result = await api.categories(token);
-    setCategories(result);
+    try {
+      const result = await api.categories(token, (freshData) => {
+        setCategories(freshData);
+      });
+      setCategories(result);
+    } catch {
+      // Swallowed as we want to remain silent if cached data exists
+    }
   }, [token]);
 
   useFocusEffect(
