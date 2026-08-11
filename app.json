@@ -32,10 +32,7 @@
           "imageWidth": 200
         }
       ],
-      "expo-secure-store",
-      "expo-image",
-      "expo-status-bar",
-      "expo-web-browser"
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
