@@ -1,25 +1,23 @@
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useAnimatedProps, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import { TextInput } from 'react-native';
-
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+import Animated, { useAnimatedStyle, useAnimatedReaction, useSharedValue, withTiming, runOnJS, type SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function AnimatedText({ text, style }: { text: SharedValue<string>; style?: any }) {
-  const animatedProps = useAnimatedProps(() => ({
-    text: text.value,
-    defaultValue: text.value,
-  }));
-  return (
-    <AnimatedTextInput
-      editable={false}
-      style={[style, { padding: 0 }]}
-      animatedProps={animatedProps}
-    />
+function SafeAnimatedText({ progress, style }: { progress: SharedValue<number>; style?: any }) {
+  const [percent, setPercent] = useState(0);
+
+  useAnimatedReaction(
+    () => Math.min(100, Math.round(progress.value)),
+    (curr, prev) => {
+      if (curr !== prev) {
+        runOnJS(setPercent)(curr);
+      }
+    }
   );
+
+  return <Text style={style}>{percent}%</Text>;
 }
 
 const COLORS = {
@@ -49,15 +47,13 @@ export function SplashContent() {
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    SplashScreen.hideAsync();
-    progress.value = withTiming(500, { duration: 900 });
+    SplashScreen.hideAsync().catch(() => {});
+    progress.value = withTiming(100, { duration: 900 });
   }, [progress]);
 
   const barStyle = useAnimatedStyle(() => ({
-    width: `${progress.value}%`,
+    width: `${Math.min(100, Math.max(0, progress.value))}%`,
   }));
-
-  const percentText = useDerivedValue(() => `${Math.round(progress.value)}%`);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -96,7 +92,7 @@ export function SplashContent() {
           <View style={styles.progressTrack}>
             <Animated.View style={[styles.progressFill, barStyle]} />
           </View>
-          <AnimatedText text={percentText} style={styles.progressPercent} />
+          <SafeAnimatedText progress={progress} style={styles.progressPercent} />
         </View>
 
         <View style={styles.statsRow}>

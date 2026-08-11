@@ -1,31 +1,69 @@
-import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
 
-import { TabBarItem, tabBarStyles } from '@/components/custom-tab-bar';
+import { COLORS } from '@/constants/colors';
 
 export default function AppTabs() {
-  const insets = useSafeAreaInsets();
-
   return (
-    <Tabs>
-      <TabSlot />
-      <TabList style={[tabBarStyles.bar, { paddingBottom: Math.max(insets.bottom, 12) + 10 }]}>
-        <TabTrigger name="home" href="/" asChild>
-          <TabBarItem tabName="home" />
-        </TabTrigger>
-        <TabTrigger name="practice" href="/practice" asChild>
-          <TabBarItem tabName="practice" />
-        </TabTrigger>
-        <TabTrigger name="journey" href="/journey" asChild>
-          <TabBarItem tabName="journey" />
-        </TabTrigger>
-        <TabTrigger name="progress" href="/progress" asChild>
-          <TabBarItem tabName="progress" />
-        </TabTrigger>
-        <TabTrigger name="profile" href="/profile" asChild>
-          <TabBarItem tabName="profile" />
-        </TabTrigger>
-      </TabList>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: COLORS.purple,
+        tabBarInactiveTintColor: COLORS.grayLight,
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: COLORS.grayBorder,
+          backgroundColor: COLORS.white,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 6,
+        },
+      }}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="practice"
+        options={{
+          title: 'Practice',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'book' : 'book-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="journey"
+        options={{
+          title: 'Journey',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: 'Progress',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={22} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

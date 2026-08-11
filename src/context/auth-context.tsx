@@ -43,6 +43,13 @@ async function clearSession() {
   }
 }
 
+async function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Auth init timeout')), ms)),
+  ]);
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [token, setToken] = useState<string | null>(null);
@@ -50,47 +57,60 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
       let storedAccessToken: string | null = null;
       let storedRefreshToken: string | null = null;
       try {
-        storedAccessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-        storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+        storedAccessToken = await withTimeout(SecureStore.getItemAsync(ACCESS_TOKEN_KEY), 1500);
+        storedRefreshToken = await withTimeout(SecureStore.getItemAsync(REFRESH_TOKEN_KEY), 1500);
       } catch {
-        // Secure storage is unavailable on this platform/build — treat as no session.
+        // Secure storage is unavailable or timed out — treat as no session.
       }
+
       if (!storedAccessToken || !storedRefreshToken) {
-        await clearSession();
-        setStatus('signedOut');
+        if (mounted) {
+          await clearSession();
+          setStatus('signedOut');
+        }
         return;
       }
 
       try {
-        const me = await api.me(storedAccessToken);
-        setToken(storedAccessToken);
-        setRefreshToken(storedRefreshToken);
-        setUser(me);
-        setStatus('signedIn');
+        const me = await withTimeout(api.me(storedAccessToken), 2500);
+        if (mounted) {
+          setToken(storedAccessToken);
+          setRefreshToken(storedRefreshToken);
+          setUser(me);
+          setStatus('signedIn');
+        }
         return;
       } catch {
-        // Access token likely expired (15 min TTL) — fall through to a refresh attempt
-        // so a returning user isn't signed out just because the app was closed a while.
+        // Access token expired/network timeout — fall through to refresh attempt
       }
 
       try {
-        const rotated = await api.refresh(storedRefreshToken);
-        const me = await api.me(rotated.accessToken);
+        const rotated = await withTimeout(api.refresh(storedRefreshToken), 2500);
+        const me = await withTimeout(api.me(rotated.accessToken), 2500);
         await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, rotated.accessToken);
         await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, rotated.refreshToken);
-        setToken(rotated.accessToken);
-        setRefreshToken(rotated.refreshToken);
-        setUser(me);
-        setStatus('signedIn');
+        if (mounted) {
+          setToken(rotated.accessToken);
+          setRefreshToken(rotated.refreshToken);
+          setUser(me);
+          setStatus('signedIn');
+        }
       } catch {
-        await clearSession();
-        setStatus('signedOut');
+        if (mounted) {
+          await clearSession();
+          setStatus('signedOut');
+        }
       }
     })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const applySession = useCallback(async (result: AuthResponse) => {

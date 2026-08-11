@@ -294,5 +294,7 @@ export type AttemptResultsResponse = {
   wrongCount: number;
   skippedCount: number;
   scorePercent: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
   questions: ResultQuestion[];
 };

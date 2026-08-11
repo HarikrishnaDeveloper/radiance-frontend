@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,12 +12,37 @@ import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
 import type { AttemptAnswerState, QuestionDifficulty, SafeQuestion } from '@/types/api';
 
+// ─── Design tokens aligned with quiz_page.html ─────────────────────────
+const QZ = {
+  bg: '#F7F6FB',
+  card: '#FFFFFF',
+  ink900: '#1B1830',
+  ink600: '#635F7A',
+  ink400: '#9C98B4',
+  ink300: '#C6C3DA',
+  line: '#ECE9F7',
+  purple600: '#5E2CE0',
+  purple500: '#6D3AF0',
+  purple400: '#8B5CF6',
+  purple100: '#EEE9FE',
+  purple50: '#F6F3FF',
+  gold: '#F5A623',
+  goldSoft: '#FFF3DC',
+  goldDeep: '#B77A0E',
+  green: '#1FAE64',
+  greenSoft: '#E6F8EF',
+  greenDeep: '#158A50',
+  red: '#E14848',
+  redSoft: '#FDECEC',
+  redDeep: '#B93030',
+} as const;
+
 type Feedback = { isCorrect: boolean; correctOptionId: number | null; explanation: string | null };
 
 const QUESTION_TIME_SECONDS = 45;
 const DIFFICULTY_LEVEL: Record<QuestionDifficulty, number> = { EASY: 1, MEDIUM: 2, HARD: 3 };
 
-function Stars({ filled, size = 13, color = COLORS.gold, emptyColor = COLORS.grayBorder }: { filled: number; size?: number; color?: string; emptyColor?: string }) {
+function Stars({ filled, size = 13, color = QZ.gold, emptyColor = QZ.ink300 }: { filled: number; size?: number; color?: string; emptyColor?: string }) {
   return (
     <View style={{ flexDirection: 'row', gap: 3 }}>
       {[1, 2, 3].map((i) => (
@@ -44,26 +69,26 @@ interface OptionProps {
 }
 
 const OptionButton = React.memo(({ option, isSelected, isCorrectOption, isWrongSelected, disabled, onPress }: OptionProps) => {
-  let borderColor: string = COLORS.grayBorder;
-  let backgroundColor: string = COLORS.white;
-  let letterBg: string = COLORS.loginBg;
-  let letterColor: string = COLORS.gray;
+  let borderColor: string = QZ.line;
+  let backgroundColor: string = QZ.card;
+  let letterBg: string = QZ.bg;
+  let letterColor: string = QZ.ink600;
 
   if (isCorrectOption) {
-    borderColor = COLORS.green;
-    backgroundColor = COLORS.greenSoft;
-    letterBg = COLORS.green;
-    letterColor = COLORS.white;
+    borderColor = QZ.green;
+    backgroundColor = QZ.greenSoft;
+    letterBg = QZ.green;
+    letterColor = QZ.card;
   } else if (isWrongSelected) {
-    borderColor = COLORS.error;
-    backgroundColor = COLORS.errorBg;
-    letterBg = COLORS.error;
-    letterColor = COLORS.white;
+    borderColor = QZ.red;
+    backgroundColor = QZ.redSoft;
+    letterBg = QZ.red;
+    letterColor = QZ.card;
   } else if (isSelected) {
-    borderColor = COLORS.purple;
-    backgroundColor = COLORS.purpleSoft;
-    letterBg = COLORS.purple;
-    letterColor = COLORS.white;
+    borderColor = QZ.purple500;
+    backgroundColor = QZ.purple50;
+    letterBg = QZ.purple500;
+    letterColor = QZ.card;
   }
 
   const handlePress = () => onPress(option.id);
@@ -72,18 +97,19 @@ const OptionButton = React.memo(({ option, isSelected, isCorrectOption, isWrongS
     <Pressable
       onPress={handlePress}
       disabled={disabled}
-      style={[
+      style={({ pressed }) => [
         styles.option,
         { borderColor, backgroundColor },
-        disabled && !isSelected && !isCorrectOption && styles.optionDimmed
+        disabled && !isSelected && !isCorrectOption && styles.optionDimmed,
+        pressed && { transform: [{ scale: 0.99 }] },
       ]}
     >
       <View style={[styles.optionLetter, { backgroundColor: letterBg }]}>
         <Text style={[styles.optionLetterText, { color: letterColor }]}>{option.label}</Text>
       </View>
       <Text style={styles.optionText}>{option.text}</Text>
-      {isCorrectOption && <Ionicons name="checkmark" size={18} color={COLORS.green} />}
-      {isWrongSelected && <Ionicons name="close" size={18} color={COLORS.error} />}
+      {isCorrectOption && <Ionicons name="checkmark" size={18} color={QZ.green} />}
+      {isWrongSelected && <Ionicons name="close" size={18} color={QZ.red} />}
     </Pressable>
   );
 });
@@ -221,7 +247,7 @@ export default function QuizScreen() {
   if (!questions) {
     return (
       <View style={styles.centerFill}>
-        <ActivityIndicator color={COLORS.purple} />
+        <ActivityIndicator color={QZ.purple600} />
       </View>
     );
   }
@@ -246,13 +272,14 @@ export default function QuizScreen() {
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* ── Top bar: close · progress · accuracy · timer ── */}
         <View style={styles.topRow}>
           <Pressable onPress={confirmExit} style={styles.closeBtn} hitSlop={10}>
-            <Ionicons name="close" size={17} color={COLORS.gray} />
+            <Ionicons name="close" size={15} color={QZ.ink600} />
           </Pressable>
           <View style={styles.progressTrack}>
             <LinearGradient
-              colors={[COLORS.purple400, COLORS.purple]}
+              colors={[QZ.purple400, QZ.purple600]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[styles.progressFill, { width: `${progressPct}%` }]}
@@ -266,12 +293,13 @@ export default function QuizScreen() {
             percent={(timeLeft / QUESTION_TIME_SECONDS) * 100}
             size={34}
             strokeWidth={4}
-            color={timeLeft > 15 ? COLORS.goldDeep : COLORS.error}
-            trackColor={COLORS.errorBg}>
+            color={timeLeft > 15 ? QZ.goldDeep : QZ.red}
+            trackColor={QZ.redSoft}>
             <Text style={styles.timerText}>{timeLeft}</Text>
           </ProgressRing>
         </View>
 
+        {/* ── Meta row: subject · year · question count ── */}
         <View style={styles.metaRow}>
           <View style={styles.metaLeft}>
             <Text style={styles.subjectTag}>{currentQuestion.category.name}</Text>
@@ -283,6 +311,7 @@ export default function QuizScreen() {
         </View>
       </SafeAreaView>
 
+      {/* ── Question body ── */}
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
         <Stars filled={difficultyLevel} size={12} />
         <Text style={styles.questionText}>{currentQuestion.text}</Text>
@@ -317,6 +346,7 @@ export default function QuizScreen() {
         </View>
       </ScrollView>
 
+      {/* ── Bottom: Check Answer / Skip ── */}
       {!feedback && (
         <View style={styles.bottomArea}>
           {!submitting && (
@@ -333,13 +363,14 @@ export default function QuizScreen() {
         </View>
       )}
 
+      {/* ── Feedback panel ── */}
       {feedback && (
         <View style={[styles.feedbackPanel, feedback.isCorrect ? styles.feedbackPanelCorrect : styles.feedbackPanelWrong]}>
           <View style={styles.feedbackTop}>
-            <View style={[styles.feedbackIcon, { backgroundColor: feedback.isCorrect ? COLORS.green : COLORS.error }]}>
-              <Ionicons name={feedback.isCorrect ? 'checkmark' : 'close'} size={16} color={COLORS.white} />
+            <View style={[styles.feedbackIcon, { backgroundColor: feedback.isCorrect ? QZ.green : QZ.red }]}>
+              <Ionicons name={feedback.isCorrect ? 'checkmark' : 'close'} size={17} color={QZ.card} />
             </View>
-            <Text style={[styles.feedbackTitle, { color: feedback.isCorrect ? '#158A50' : '#B93030' }]}>
+            <Text style={[styles.feedbackTitle, { color: feedback.isCorrect ? QZ.greenDeep : QZ.redDeep }]}>
               {feedback.isCorrect ? 'Correct!' : 'Not Quite'}
             </Text>
             <Text style={styles.feedbackXp}>{feedback.isCorrect ? '+10 XP' : '+0 XP'}</Text>
@@ -354,63 +385,171 @@ export default function QuizScreen() {
   );
 }
 
+// ─── Styles matched to quiz_page.html design ───────────────────────────
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.loginBg },
-  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.loginBg, gap: 14, paddingHorizontal: 24 },
-  doneTitle: { fontSize: 17, fontWeight: '800', color: COLORS.navy },
+  screen: { flex: 1, backgroundColor: QZ.bg },
+  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: QZ.bg, gap: 14, paddingHorizontal: 24 },
+  doneTitle: { fontSize: 17, fontWeight: '800', color: QZ.ink900 },
 
   safeArea: { paddingHorizontal: 20, paddingTop: 6 },
+
+  // ── Top row ──
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   closeBtn: {
     width: 34,
     height: 34,
     borderRadius: 11,
-    backgroundColor: COLORS.white,
+    backgroundColor: QZ.card,
     alignItems: 'center',
     justifyContent: 'center',
+    // Shadow matching .close-btn box-shadow from the HTML
+    ...Platform.select({
+      ios: {
+        shadowColor: '#1B1830',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  progressTrack: { flex: 1, height: 9, borderRadius: 100, backgroundColor: COLORS.grayBorder, overflow: 'hidden' },
+  progressTrack: { flex: 1, height: 9, borderRadius: 100, backgroundColor: QZ.line, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 100 },
   accuracyWrap: { alignItems: 'center', gap: 2 },
-  accuracyPct: { fontSize: 9, fontWeight: '800', color: COLORS.grayLight, letterSpacing: 0.2 },
-  timerText: { fontSize: 10, fontWeight: '800', color: COLORS.navy },
+  accuracyPct: { fontSize: 9, fontWeight: '800', color: QZ.ink400, letterSpacing: 0.2 },
+  timerText: { fontSize: 10, fontWeight: '800', color: QZ.ink900 },
 
+  // ── Meta row ──
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
   metaLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subjectTag: { fontSize: 11, fontWeight: '800', color: COLORS.purple, backgroundColor: COLORS.purpleSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
-  yearTag: { fontSize: 11, fontWeight: '700', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
-  qCount: { fontSize: 11.5, fontWeight: '700', color: COLORS.grayLight },
+  subjectTag: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: QZ.purple600,
+    backgroundColor: QZ.purple50,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  yearTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: QZ.goldDeep,
+    backgroundColor: QZ.goldSoft,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  qCount: { fontSize: 11.5, fontWeight: '700', color: QZ.ink400 },
 
+  // ── Question body ──
   body: { flex: 1 },
   bodyContent: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 8 },
-  questionText: { fontSize: 19, fontWeight: '800', color: COLORS.navy, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
+  questionText: { fontSize: 19, fontWeight: '800', color: QZ.ink900, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
   questionImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 12 },
 
-  options: { marginTop: 22, gap: 12 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 13, borderWidth: 2, borderRadius: 16, padding: 14 },
+  // ── Options ──
+  options: { marginTop: 24, gap: 12 },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    borderWidth: 2,
+    borderRadius: 16,
+    padding: 14,
+  },
   optionDimmed: { opacity: 0.55 },
   optionLetter: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   optionLetterText: { fontSize: 13, fontWeight: '800' },
-  optionText: { flex: 1, fontSize: 14.5, fontWeight: '600', color: COLORS.navy },
+  optionText: { flex: 1, fontSize: 14.5, fontWeight: '600', color: QZ.ink900 },
 
+  // ── Bottom area ──
   bottomArea: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18, gap: 8 },
   skipLink: { alignItems: 'center', paddingVertical: 4 },
-  skipLinkText: { fontSize: 12.5, fontWeight: '600', color: COLORS.grayLight },
-  checkBtn: { backgroundColor: COLORS.grayLight, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  checkBtnEnabled: { backgroundColor: COLORS.purple },
-  checkBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
+  skipLinkText: { fontSize: 12.5, fontWeight: '600', color: QZ.ink400 },
+  checkBtn: {
+    backgroundColor: QZ.ink300,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  checkBtnEnabled: {
+    backgroundColor: QZ.purple600,
+    // Purple glow shadow from the HTML: box-shadow:0 12px 26px -12px rgba(94,44,224,0.55)
+    ...Platform.select({
+      ios: {
+        shadowColor: '#5E2CE0',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.55,
+        shadowRadius: 26,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  checkBtnText: { fontSize: 15, fontWeight: '800', color: QZ.card },
 
-  feedbackPanel: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 20, borderTopWidth: 1, borderTopColor: COLORS.grayBorder },
-  feedbackPanelCorrect: { backgroundColor: COLORS.greenSoft },
-  feedbackPanelWrong: { backgroundColor: COLORS.errorBg },
+  // ── Feedback panel ──
+  feedbackPanel: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 20, borderTopWidth: 1, borderTopColor: QZ.line },
+  feedbackPanelCorrect: { backgroundColor: QZ.greenSoft },
+  feedbackPanelWrong: { backgroundColor: QZ.redSoft },
   feedbackTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   feedbackIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   feedbackTitle: { fontSize: 15, fontWeight: '800' },
-  feedbackXp: { marginLeft: 'auto', fontSize: 12, fontWeight: '800', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
-  feedbackExplain: { fontSize: 12.5, color: COLORS.gray, fontWeight: '500', lineHeight: 18, marginTop: 10 },
-  continueBtn: { marginTop: 14, backgroundColor: COLORS.purple, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  continueBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
+  feedbackXp: {
+    marginLeft: 'auto',
+    fontSize: 12,
+    fontWeight: '800',
+    color: QZ.goldDeep,
+    backgroundColor: QZ.goldSoft,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  feedbackExplain: { fontSize: 12.5, color: QZ.ink600, fontWeight: '500', lineHeight: 19, marginTop: 10 },
+  continueBtn: {
+    marginTop: 14,
+    backgroundColor: QZ.purple600,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    // Same purple glow as check button
+    ...Platform.select({
+      ios: {
+        shadowColor: '#5E2CE0',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.55,
+        shadowRadius: 26,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  continueBtnText: { fontSize: 15, fontWeight: '800', color: QZ.card },
 
-  primaryButton: { backgroundColor: COLORS.purple, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 },
-  primaryButtonText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
+  primaryButton: {
+    backgroundColor: QZ.purple600,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#5E2CE0',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.55,
+        shadowRadius: 26,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  primaryButtonText: { fontSize: 15, fontWeight: '800', color: QZ.card },
 });

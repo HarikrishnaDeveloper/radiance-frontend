@@ -17,6 +17,7 @@ import type {
   StageSubmitResponse,
   StreakResponse,
   SubmitAnswerResponse,
+  AttemptResultsResponse,
 } from '@/types/api';
 
 import { fetchWithCache, invalidateCache, invalidateCacheByPrefix, clearCache } from './data-cache';
@@ -207,7 +208,7 @@ export const api = {
   },
 
   getResults: (token: string, attemptId: number) =>
-    request<AttemptDetailResponse>(`/api/attempts/${attemptId}/results`, { token }),
+    request<AttemptResultsResponse>(`/api/attempts/${attemptId}/results`, { token }),
 
   stageDetail: (token: string, stageId: number) =>
     request<StageDetailResponse>(`/api/stages/${stageId}`, { token }),

@@ -4,24 +4,23 @@
     "slug": "radience-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./logo.png",
+    "icon": "./logo_square.png",
     "scheme": "radiencefrontend",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./logo.png"
+      "icon": "./logo_square.png"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./logo.png"
+        "foregroundImage": "./logo_square.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hari1014129.radiencefrontend",
-      "usesCleartextTraffic": true
+      "package": "com.hari1014129.radiencefrontend"
     },
     "web": {
       "output": "static",
-      "favicon": "./logo.png"
+      "favicon": "./logo_square.png"
     },
     "plugins": [
       "expo-router",
@@ -29,7 +28,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
-          "image": "./logo.png",
+          "image": "./logo_square.png",
           "imageWidth": 200
         }
       ],
