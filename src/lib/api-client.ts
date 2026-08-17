@@ -8,6 +8,7 @@ import type {
   CategorySummary,
   CompleteAttemptResponse,
   ContinueLearning,
+  CreateSubscriptionResponse,
   DailyChallengeResponse,
   DailyChallengeSubmitResponse,
   DashboardResponse,
@@ -18,6 +19,7 @@ import type {
   StreakResponse,
   SubmitAnswerResponse,
   AttemptResultsResponse,
+  SubscriptionStatusResponse,
 } from '@/types/api';
 
 import { fetchWithCache, invalidateCache, invalidateCacheByPrefix, clearCache } from './data-cache';
@@ -26,10 +28,17 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 export class ApiError extends Error {
   status: number;
+  body: Record<string, unknown> | null;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, body: Record<string, unknown> | null = null) {
     super(message);
     this.status = status;
+    this.body = body;
+  }
+
+  /** True when this request was rejected because the free-stage budget is used up. */
+  get isSubscriptionRequired() {
+    return this.status === 402 && this.body?.error === 'SUBSCRIPTION_REQUIRED';
   }
 }
 
@@ -63,7 +72,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, data?.error ?? 'Request failed');
+    throw new ApiError(response.status, data?.error ?? 'Request failed', data);
   }
 
   return data as T;
@@ -248,6 +257,20 @@ export const api = {
       body: { answers },
     });
   },
+
+  // ─── Payments / subscription ─────────────────────────────────────────
+
+  subscriptionStatus: (token: string) => request<SubscriptionStatusResponse>('/api/payments/status', { token }),
+
+  createSubscription: (token: string) =>
+    request<CreateSubscriptionResponse>('/api/payments/create-subscription', { method: 'POST', token }),
+
+  verifySubscription: (
+    token: string,
+    payload: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }
+  ) => request<{ ok: true; isPremium: true }>('/api/payments/verify-subscription', { method: 'POST', token, body: payload }),
+
+  cancelSubscription: (token: string) => request<{ ok: true }>('/api/payments/cancel', { method: 'POST', token }),
 
   // ─── Cache management ───────────────────────────────────────────────
 

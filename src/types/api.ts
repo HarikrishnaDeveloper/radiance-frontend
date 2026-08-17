@@ -7,6 +7,34 @@ export type AuthUser = {
   phone?: string | null;
   email?: string | null;
   state?: string | null;
+  isTestUser: boolean;
+  isPremium: boolean;
+};
+
+export type SubscriptionStatus =
+  | 'CREATED'
+  | 'AUTHENTICATED'
+  | 'ACTIVE'
+  | 'PENDING'
+  | 'HALTED'
+  | 'CANCELLED'
+  | 'COMPLETED'
+  | 'EXPIRED';
+
+export type SubscriptionStatusResponse = {
+  isTestUser: boolean;
+  isPremium: boolean;
+  freeStageLimit: number;
+  freeStagesUsed: number;
+  monthlyAmountPaise: number;
+  subscription: { status: SubscriptionStatus; currentStart: string | null; currentEnd: string | null } | null;
+};
+
+export type CreateSubscriptionResponse = {
+  subscriptionId: string;
+  keyId: string;
+  amount: number;
+  currency: string;
 };
 
 export type AuthResponse = {
@@ -38,6 +66,7 @@ export type StageSummary = {
   status: StageStatus;
   starsEarned: number;
   accuracy: number;
+  requiresSubscription: boolean;
 };
 
 export type CategoryDetailResponse = {

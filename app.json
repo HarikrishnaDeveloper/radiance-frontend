@@ -8,7 +8,10 @@
     "scheme": "radiencefrontend",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./logo_square.png"
+      "icon": "./logo_square.png",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["tez", "phonepe", "paytmmp"]
+      }
     },
     "android": {
       "adaptiveIcon": {

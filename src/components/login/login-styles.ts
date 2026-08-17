@@ -155,8 +155,9 @@ export const loginStyles = StyleSheet.create({
   // ─── Login (Welcome Back) ───
   loginContainer: { flex: 1, backgroundColor: COLORS.loginBg },
   loginScrollContent: { flexGrow: 1 },
+  loginSafeArea: { flex: 1, justifyContent: 'center', paddingVertical: 12 },
 
-  loginHero: { alignItems: 'center', paddingTop: 10 },
+  loginHero: { alignItems: 'center' },
   loginBookImage: { width: '90%', maxWidth: 350, aspectRatio: 1, top: 30, alignSelf: 'center' },
   loginWelcome: { fontSize: 30, fontWeight: '600', color: COLORS.navy, marginTop: 2, textAlign: 'center', },
   fieldLabel: { fontSize: 14, fontWeight: '700', color: COLORS.navy, marginBottom: 8 },
