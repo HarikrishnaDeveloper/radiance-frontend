@@ -76,6 +76,7 @@ export function StagePath({ stages, onStagePress, horizontalInset = 44 }: Props)
         const isCurrent = i === firstActiveIndex;
         const isDone = stage.status === 'COMPLETED';
         const isLocked = stage.status === 'LOCKED';
+        const needsSubscription = stage.requiresSubscription && !isDone;
         const size = isCurrent ? currentNodeSize : nodeSize;
 
         return (
@@ -94,14 +95,16 @@ export function StagePath({ stages, onStagePress, horizontalInset = 44 }: Props)
                 styles.node,
                 { width: size, height: size, borderRadius: size / 2 },
                 isDone && { backgroundColor: COLORS.purple },
-                isCurrent && { backgroundColor: COLORS.gold },
+                isCurrent && !needsSubscription && { backgroundColor: COLORS.gold },
                 isLocked && styles.nodeLocked,
-                !isDone && !isCurrent && !isLocked && { backgroundColor: COLORS.purpleSoft },
+                needsSubscription && styles.nodeNeedsSubscription,
+                !isDone && !isCurrent && !isLocked && !needsSubscription && { backgroundColor: COLORS.purpleSoft },
               ]}>
               {isDone && <Ionicons name="checkmark" size={Math.round(size * 0.45)} color={COLORS.white} />}
-              {isCurrent && <Ionicons name="play" size={Math.round(size * 0.4)} color={COLORS.white} />}
-              {isLocked && <Ionicons name="lock-closed" size={Math.round(size * 0.35)} color={COLORS.grayLight} />}
-              {!isDone && !isCurrent && !isLocked && (
+              {needsSubscription && <Ionicons name="lock-closed" size={Math.round(size * 0.35)} color={COLORS.goldDeep} />}
+              {!isDone && !needsSubscription && isCurrent && <Ionicons name="play" size={Math.round(size * 0.4)} color={COLORS.white} />}
+              {!isDone && !needsSubscription && isLocked && <Ionicons name="lock-closed" size={Math.round(size * 0.35)} color={COLORS.grayLight} />}
+              {!isDone && !needsSubscription && !isCurrent && !isLocked && (
                 <Ionicons name="ellipse" size={Math.round(size * 0.3)} color={COLORS.purple} />
               )}
             </View>
@@ -133,6 +136,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderWidth: 2,
     borderColor: COLORS.grayBorder,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  nodeNeedsSubscription: {
+    backgroundColor: COLORS.goldSoft,
+    borderWidth: 2,
+    borderColor: COLORS.gold,
     shadowOpacity: 0,
     elevation: 0,
   },

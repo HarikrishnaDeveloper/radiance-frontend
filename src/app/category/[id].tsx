@@ -27,6 +27,10 @@ export default function CategoryScreen() {
       setToast({ type: 'error', message: `Complete Stage ${index} first` });
       return;
     }
+    if (stage.requiresSubscription && stage.status !== 'COMPLETED') {
+      router.push('/paywall');
+      return;
+    }
     router.push(`/stage/${stage.id}`);
   }
 

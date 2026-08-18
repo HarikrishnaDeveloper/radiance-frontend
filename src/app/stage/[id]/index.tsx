@@ -10,7 +10,7 @@ import { ProgressRing } from '@/components/progress-ring';
 import { StarRating } from '@/components/star-rating';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
-import { api } from '@/lib/api-client';
+import { ApiError, api } from '@/lib/api-client';
 import type { QuestionDifficulty, SafeQuestion, StageDetailResponse, StageSubmitResponse, StreakResponse, SubmitAnswerResponse } from '@/types/api';
 
 const XP_PER_CORRECT = 15;
@@ -118,7 +118,13 @@ export default function StageScreen() {
 
   useEffect(() => {
     if (!token || !id) return;
-    api.stageDetail(token, Number(id)).then(setStage);
+    api.stageDetail(token, Number(id)).then(setStage).catch((e) => {
+      if (e instanceof ApiError && e.isSubscriptionRequired) {
+        router.replace('/paywall');
+      } else {
+        Alert.alert('Could not load stage', 'Please try again.', [{ text: 'OK', onPress: () => router.back() }]);
+      }
+    });
   }, [token, id]);
 
   useEffect(() => {

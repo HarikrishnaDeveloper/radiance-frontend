@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,6 +21,9 @@ type Props = {
 
 export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onContinue, onGoToLogin }: Props) {
   const [toast, setToast] = useState<ToastData | null>(null);
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const isCompact = windowHeight < 700;
+  const heroSize = Math.min(windowWidth * 0.8, windowHeight * (isCompact ? 0.22 : 0.32), 320);
 
   useEffect(() => {
     if (error) {
@@ -35,10 +38,10 @@ export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onC
       <Toast toast={toast} onHide={() => setToast(null)} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.select({ ios: 'padding', default: undefined })}>
         <ScrollView contentContainerStyle={styles.loginScrollContent} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <SafeAreaView style={styles.safeArea}>
+          <SafeAreaView style={styles.loginSafeArea}>
             <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
               <Image
-                style={styles.loginBookImage}
+                style={{ width: heroSize, height: heroSize, alignSelf: 'center' }}
                 source={require('../../../assets/login/book.png')}
                 contentFit="cover"
                 contentPosition="top"
@@ -49,7 +52,7 @@ export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onC
               <Text style={styles.loginWelcome}>Create Your Account</Text>
               <Text style={styles.subtitle}>Let's get started on your UPSC journey</Text>
 
-              <View style={[styles.inputGroup, { marginTop: 40 }]}>
+              <View style={[styles.inputGroup, { marginTop: isCompact ? 24 : 40 }]}>
                 <Text style={styles.fieldLabel}>Mobile Number</Text>
                 <View style={styles.inputRow}>
                   <Text style={styles.countryCode}>+91</Text>
@@ -73,7 +76,7 @@ export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onC
                   colors={[COLORS.purple, COLORS.purpleDark]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.purpleButton}>
+                  style={[styles.purpleButton, { marginTop: 28 }]}>
                   <Text style={styles.purpleButtonText}>{submitting ? 'Sending…' : 'Continue'}</Text>
                   {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
                 </LinearGradient>

@@ -25,6 +25,8 @@ type AuthContextValue = {
     password?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-fetches /auth/me — call after a payment completes so `user.isPremium` reflects it immediately. */
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -153,6 +155,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [token]
   );
 
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    const me = await api.me(token);
+    setUser(me);
+  }, [token]);
+
   const logout = useCallback(async () => {
     if (refreshToken) {
       await api.logout(refreshToken).catch(() => undefined);
@@ -166,8 +174,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [refreshToken]);
 
   const value = useMemo(
-    () => ({ status, token, user, login, requestOtp, verifyOtp, completeProfile, logout }),
-    [status, token, user, login, requestOtp, verifyOtp, completeProfile, logout]
+    () => ({ status, token, user, login, requestOtp, verifyOtp, completeProfile, logout, refreshUser }),
+    [status, token, user, login, requestOtp, verifyOtp, completeProfile, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
