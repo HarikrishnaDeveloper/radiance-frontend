@@ -233,6 +233,7 @@ export type StageResultQuestion = {
   text: string;
   questionImage: string | null;
   explanation: string | null;
+  revisionPoints: string | null;
   options: { id: number; label: string; text: string; isCorrect: boolean }[];
   selectedOptionId: number | null;
   isCorrect: boolean;
@@ -309,6 +310,7 @@ export type ResultQuestion = {
   text: string;
   questionImage?: string | null;
   explanation: string | null;
+  revisionPoints: string | null;
   category: { id: number; name: string };
   questionPaper?: { year: number } | null;
   options: ResultOption[];

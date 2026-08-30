@@ -318,6 +318,16 @@ export default function ResultsScreen() {
                     <Text style={styles.explanationText}>{question.explanation}</Text>
                   </View>
                 )}
+
+                {question.revisionPoints && (
+                  <View style={styles.revisionBox}>
+                    <View style={styles.revisionTitleRow}>
+                      <Ionicons name="bookmark" size={13} color={RC.goldDeep} />
+                      <Text style={styles.revisionTitle}>UPSC Revision Point</Text>
+                    </View>
+                    <Text style={styles.revisionText}>{question.revisionPoints}</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -784,6 +794,29 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   explanationText: {
+    fontSize: 13,
+    color: RC.ink600,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  revisionBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: RC.goldSoft,
+    borderRadius: 12,
+  },
+  revisionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+  },
+  revisionTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: RC.goldDeep,
+  },
+  revisionText: {
     fontSize: 13,
     color: RC.ink600,
     lineHeight: 18,

@@ -94,6 +94,15 @@ export default function StageResultsScreen() {
 
             {question.selectedOptionId === null && <Text style={styles.skippedNote}>You skipped this question.</Text>}
             {question.explanation && <Text style={styles.explanation}>{question.explanation}</Text>}
+            {question.revisionPoints && (
+              <View style={styles.revisionBox}>
+                <View style={styles.revisionTitleRow}>
+                  <Ionicons name="bookmark" size={12} color={COLORS.purple700} />
+                  <Text style={styles.revisionTitle}>UPSC Revision Point</Text>
+                </View>
+                <Text style={styles.revisionText}>{question.revisionPoints}</Text>
+              </View>
+            )}
           </View>
         ))}
 
@@ -147,6 +156,10 @@ const styles = StyleSheet.create({
 
   skippedNote: { fontSize: 12, fontStyle: 'italic', color: COLORS.grayLight, marginTop: 10 },
   explanation: { fontSize: 12.5, color: COLORS.gray, fontWeight: '500', lineHeight: 18, marginTop: 10 },
+  revisionBox: { marginTop: 10, padding: 12, backgroundColor: COLORS.goldSoft, borderRadius: 12 },
+  revisionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  revisionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.purple700 },
+  revisionText: { fontSize: 12.5, color: COLORS.gray, fontWeight: '500', lineHeight: 18 },
 
   doneBtn: { backgroundColor: COLORS.purple700, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   doneBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
