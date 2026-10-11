@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useEffect, useState } from 'react';
 import { COLORS } from './colors';
-import { Toast, type ToastData } from '../toast';
+import { Toast } from '../toast';
 import { loginStyles as styles } from './login-styles';
+import { useErrorToast } from '@/hooks/use-error-toast';
 
 type Props = {
   phone: string;
@@ -20,81 +20,74 @@ type Props = {
 };
 
 export function SignupPhoneScreen({ phone, onPhoneChange, error, submitting, onContinue, onGoToLogin }: Props) {
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const [toast, setToast] = useErrorToast(error);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isCompact = windowHeight < 700;
-  const heroSize = Math.min(windowWidth * 0.8, windowHeight * (isCompact ? 0.22 : 0.32), 320);
+  const heroSize = Math.min(windowWidth * 0.4, windowHeight * (isCompact ? 0.16 : 0.32), 320);
 
-  useEffect(() => {
-    if (error) {
-      setToast({ type: 'error', message: error });
-    } else {
-      setToast(null);
-    }
-  }, [error]);
 
   return (
     <View style={styles.loginContainer}>
       <Toast toast={toast} onHide={() => setToast(null)} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.select({ ios: 'padding', default: undefined })}>
-        <ScrollView contentContainerStyle={styles.loginScrollContent} bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <SafeAreaView style={styles.loginSafeArea}>
-            <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
-              <Image
-                style={{ width: heroSize, height: heroSize, alignSelf: 'center' }}
-                source={require('../../../assets/login/book.png')}
-                contentFit="cover"
-                contentPosition="top"
-              />
-            </Animated.View>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.select({ ios: 'padding', default: 'height' })}
+        keyboardVerticalOffset={Platform.select({ ios: 0, default: 0 })}>
+        <SafeAreaView style={styles.loginSafeArea}>
+          <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
 
-            <Animated.View entering={FadeInUp.duration(400)} style={styles.content}>
-              <Text style={styles.loginWelcome}>Create Your Account</Text>
-              <Text style={styles.subtitle}>Let's get started on your UPSC journey</Text>
+            <Image
+              style={{ width: heroSize, height: heroSize, alignSelf: 'center' }}
+              source={require('../../../assets/images/logo.png')}
+              contentFit="contain"
+            />
+          </Animated.View>
 
-              <View style={[styles.inputGroup, { marginTop: isCompact ? 24 : 40 }]}>
-                <Text style={styles.fieldLabel}>Mobile Number</Text>
-                <View style={styles.inputRow}>
-                  <Text style={styles.countryCode}>+91</Text>
-                  <Ionicons name="chevron-down" size={14} color={COLORS.grayLight} />
-                  <View style={styles.inputDivider} />
-                  <Ionicons name="call-outline" size={18} color={COLORS.purple} style={styles.inputLeadingIcon} />
-                  <TextInput
-                    value={phone}
-                    onChangeText={onPhoneChange}
-                    placeholder="Enter your mobile number"
-                    placeholderTextColor={COLORS.grayLight}
-                    keyboardType="phone-pad"
-                    autoFocus
-                    style={styles.inputField}
-                  />
-                </View>
+          <Animated.View entering={FadeInUp.duration(400)} style={styles.content}>
+            <Text style={styles.loginWelcome}>Create Your Account</Text>
+            <Text style={styles.subtitle}>Let&apos;s get started on your UPSC journey</Text>
+
+            <View style={[styles.inputGroup, { marginTop: isCompact ? 16 : 40 }]}>
+              <Text style={styles.fieldLabel}>Mobile Number</Text>
+              <View style={styles.inputRow}>
+                <Text style={styles.countryCode}>+91</Text>
+                <Ionicons name="chevron-down" size={14} color={COLORS.grayLight} />
+                <View style={styles.inputDivider} />
+                <Ionicons name="call-outline" size={18} color={COLORS.purple} style={styles.inputLeadingIcon} />
+                <TextInput
+                  value={phone}
+                  onChangeText={onPhoneChange}
+                  placeholder="Enter your mobile number"
+                  placeholderTextColor={COLORS.grayLight}
+                  keyboardType="phone-pad"
+                  autoFocus
+                  style={styles.inputField}
+                />
               </View>
+            </View>
 
-              <Pressable onPress={onContinue} disabled={submitting} style={({ pressed }) => [{ marginTop: 32 }, pressed && styles.buttonPressed]}>
-                <LinearGradient
-                  colors={[COLORS.purple, COLORS.purpleDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.purpleButton, { marginTop: 28 }]}>
-                  <Text style={styles.purpleButtonText}>{submitting ? 'Sending…' : 'Continue'}</Text>
-                  {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
-                </LinearGradient>
+            <Pressable onPress={onContinue} disabled={submitting} style={({ pressed }) => [{ marginTop: isCompact ? 20 : 32 }, pressed && styles.buttonPressed]}>
+              <LinearGradient
+                colors={[COLORS.purple, COLORS.purpleDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.purpleButton, { marginTop: isCompact ? 16 : 28 }]}>
+                <Text style={styles.purpleButtonText}>{submitting ? 'Sending…' : 'Continue'}</Text>
+              </LinearGradient>
+            </Pressable>
+
+            <View style={[styles.signUpRow, isCompact && { marginTop: 20, paddingBottom: 8 }]}>
+              <Text style={styles.signUpLabel}>Already have an account? </Text>
+              <Pressable onPress={onGoToLogin}>
+                <Text style={styles.signUpLink}>Login</Text>
               </Pressable>
-
-              <View style={styles.signUpRow}>
-                <Text style={styles.signUpLabel}>Already have an account? </Text>
-                <Pressable onPress={onGoToLogin}>
-                  <Text style={styles.signUpLink}>Login</Text>
-                </Pressable>
-              </View>
-            </Animated.View>
+            </View>
 
             <Text style={styles.termsText}>
               By continuing, you agree to our <Text style={styles.termsLink}>Terms</Text> & <Text style={styles.termsLink}>Privacy Policy</Text>
             </Text>
-          </SafeAreaView>
-        </ScrollView>
+          </Animated.View>
+        </SafeAreaView>
       </KeyboardAvoidingView>
     </View>
   );

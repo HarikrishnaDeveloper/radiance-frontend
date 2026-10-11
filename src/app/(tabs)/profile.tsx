@@ -59,7 +59,7 @@ export default function ProfileScreen() {
     setSaving(true);
     try {
       await completeProfile({
-        name: trimmedName,
+        fullName: trimmedName,
         email: editEmail.trim() || undefined,
         state: editState.trim() || undefined,
       });
@@ -72,6 +72,29 @@ export default function ProfileScreen() {
   }
 
   const stagesDone = dashboard?.categoryProgress.reduce((sum, c) => sum + c.completedStages, 0) ?? 0;
+
+  const prepRows = [
+    {
+      icon: 'school-outline' as const,
+      label: 'Target Exam',
+      value: user?.profile?.targetExam === 'GROUP_1' ? 'Group 1' : user?.profile?.targetExam === 'OTHER' ? 'Other' : 'UPSC CSE',
+    },
+    {
+      icon: 'stats-chart-outline' as const,
+      label: 'Preparation Level',
+      value: user?.profile?.preparationLevel ? user.profile.preparationLevel.charAt(0) + user.profile.preparationLevel.slice(1).toLowerCase() : 'Beginner',
+    },
+    {
+      icon: 'calendar-outline' as const,
+      label: 'Target Attempt',
+      value: user?.profile?.targetAttempt ?? 'Not decided',
+    },
+    {
+      icon: 'compass-outline' as const,
+      label: 'Preparation Focus',
+      value: user?.profile?.preparationFocus === 'GS' ? 'GS' : user?.profile?.preparationFocus === 'CSAT' ? 'CSAT' : 'Both (GS & CSAT)',
+    },
+  ];
 
   const infoRows = [
     { icon: 'at-outline' as const, label: 'Username', value: user?.username },
@@ -96,16 +119,17 @@ export default function ProfileScreen() {
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials(user?.name, user?.username)}</Text>
+            <Text style={styles.avatarText}>{initials(user?.profile?.fullName ?? user?.name, user?.username)}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.name ?? user?.username}</Text>
-            {user?.state && (
-              <View style={styles.goalChip}>
-                <Ionicons name="location" size={12} color={COLORS.purple} />
-                <Text style={styles.goalChipText}>{user.state}</Text>
-              </View>
-            )}
+            <Text style={styles.profileName}>{user?.profile?.fullName ?? user?.name ?? user?.username}</Text>
+            <View style={styles.goalChip}>
+              <Ionicons name="school" size={12} color={COLORS.purple} />
+              <Text style={styles.goalChipText}>
+                {user?.profile?.targetExam === 'GROUP_1' ? 'Group 1' : user?.profile?.targetExam === 'OTHER' ? 'Other' : 'UPSC CSE'}
+                {user?.profile?.targetAttempt ? ` • ${user.profile.targetAttempt}` : ''}
+              </Text>
+            </View>
           </View>
           <Pressable style={styles.editBtn} onPress={openEdit}>
             <Ionicons name="create-outline" size={16} color={COLORS.gray} />
@@ -124,6 +148,21 @@ export default function ProfileScreen() {
           <View style={styles.statItem}>
             <Text style={styles.statVal}>{dashboard?.stats.accuracy ?? '–'}%</Text>
             <Text style={styles.statLabel}>Accuracy</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preparation Goals</Text>
+          <View style={styles.menuCard}>
+            {prepRows.map((row, i) => (
+              <View key={row.label} style={[styles.menuRow, i === prepRows.length - 1 && styles.menuRowLast]}>
+                <View style={[styles.menuIcon, { backgroundColor: COLORS.purpleSoft }]}>
+                  <Ionicons name={row.icon} size={18} color={COLORS.purple} />
+                </View>
+                <Text style={styles.menuLabel}>{row.label}</Text>
+                <Text style={styles.menuValue}>{row.value}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -148,7 +187,7 @@ export default function ProfileScreen() {
           <View style={styles.menuCard}>
             {history.length === 0 && <Text style={styles.emptyText}>No completed attempts yet.</Text>}
             {history.map((attempt, i) => (
-              <Pressable key={attempt.id} onPress={() => router.push(`/results/${attempt.id}`)}>
+              <Pressable key={attempt.id} onPress={() => router.push(attempt.mode === 'FULL_PAPER' ? `/test/${attempt.id}/results` : `/results/${attempt.id}`)}>
                 <View style={[styles.menuRow, i === history.length - 1 && styles.menuRowLast]}>
                   <View style={[styles.menuIcon, { backgroundColor: COLORS.greenSoft }]}>
                     <Ionicons name="document-text-outline" size={18} color={COLORS.green} />
@@ -232,7 +271,7 @@ const styles = StyleSheet.create({
   iconPill: {
     width: 38,
     height: 38,
-    borderRadius: 13,
+    borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -242,7 +281,7 @@ const styles = StyleSheet.create({
     marginTop: -40,
     marginHorizontal: 22,
     backgroundColor: COLORS.white,
-    borderRadius: 24,
+    borderRadius: 2,
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,7 +290,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 66,
     height: 66,
-    borderRadius: 20,
+    borderRadius: 2,
     backgroundColor: COLORS.purple,
     alignItems: 'center',
     justifyContent: 'center',
@@ -268,13 +307,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.purpleSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 2,
   },
   goalChipText: { fontSize: 11.5, fontWeight: '700', color: COLORS.purple },
   editBtn: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: 2,
     backgroundColor: COLORS.loginBg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -284,7 +323,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginHorizontal: 22,
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: 2,
     flexDirection: 'row',
     paddingVertical: 16,
   },
@@ -296,7 +335,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 22, paddingTop: 22 },
   sectionTitle: { fontSize: 16.5, fontWeight: '800', color: COLORS.navy, marginBottom: 14 },
 
-  menuCard: { backgroundColor: COLORS.white, borderRadius: 20, overflow: 'hidden' },
+  menuCard: { backgroundColor: COLORS.white, borderRadius: 2, overflow: 'hidden' },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -306,7 +345,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.grayBorder,
   },
   menuRowLast: { borderBottomWidth: 0 },
-  menuIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  menuIcon: { width: 38, height: 38, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
   menuLabel: { fontSize: 14, fontWeight: '700', color: COLORS.navy, flex: 1 },
   menuValue: { fontSize: 13, fontWeight: '600', color: COLORS.gray },
   menuSub: { fontSize: 12, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
@@ -318,20 +357,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: 2,
     padding: 15,
   },
   logoutText: { color: COLORS.error, fontSize: 14, fontWeight: '800' },
   versionText: { textAlign: 'center', fontSize: 11.5, color: COLORS.grayLight, fontWeight: '500', marginTop: 14 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(21,43,92,0.45)', justifyContent: 'center', padding: 24 },
-  modalCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 22 },
+  modalCard: { backgroundColor: COLORS.white, borderRadius: 2, padding: 22 },
   modalTitle: { fontSize: 17, fontWeight: '800', color: COLORS.navy, marginBottom: 16 },
   fieldLabel: { fontSize: 12.5, fontWeight: '700', color: COLORS.gray, marginBottom: 6, marginTop: 12 },
   input: {
     borderWidth: 1.5,
     borderColor: COLORS.grayBorder,
-    borderRadius: 12,
+    borderRadius: 2,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
@@ -339,8 +378,8 @@ const styles = StyleSheet.create({
   },
   modalError: { color: COLORS.error, fontSize: 12.5, fontWeight: '600', marginTop: 12 },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 22 },
-  modalCancel: { flex: 1, paddingVertical: 13, alignItems: 'center', borderRadius: 12, backgroundColor: COLORS.loginBg },
+  modalCancel: { flex: 1, paddingVertical: 13, alignItems: 'center', borderRadius: 2, backgroundColor: COLORS.loginBg },
   modalCancelText: { color: COLORS.gray, fontWeight: '700' },
-  modalSave: { flex: 1, paddingVertical: 13, alignItems: 'center', borderRadius: 12, backgroundColor: COLORS.purple },
+  modalSave: { flex: 1, paddingVertical: 13, alignItems: 'center', borderRadius: 2, backgroundColor: COLORS.purple },
   modalSaveText: { color: COLORS.white, fontWeight: '700' },
 });

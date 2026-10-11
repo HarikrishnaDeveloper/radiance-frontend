@@ -18,8 +18,13 @@ type AuthContextValue = {
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, code: string) => Promise<AuthUser>;
   completeProfile: (details: {
-    name: string;
+    fullName?: string;
+    name?: string;
     email?: string;
+    targetExam?: string;
+    preparationLevel?: string;
+    targetAttempt?: string | null;
+    preparationFocus?: string;
     state?: string;
     dateOfBirth?: string;
     password?: string;
@@ -145,9 +150,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const completeProfile = useCallback(
-    async (details: { name: string; email?: string; state?: string; dateOfBirth?: string; password?: string }) => {
+    async (details: {
+      fullName?: string;
+      name?: string;
+      email?: string;
+      targetExam?: string;
+      preparationLevel?: string;
+      targetAttempt?: string | null;
+      preparationFocus?: string;
+      state?: string;
+      dateOfBirth?: string;
+      password?: string;
+    }) => {
       if (!token) throw new Error('Not signed in');
-      const result = await api.updateProfile(token, details);
+      const finalDetails = {
+        ...details,
+        fullName: details.fullName ?? details.name ?? '',
+      };
+      const result = await api.updateProfile(token, finalDetails);
       await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, result.accessToken);
       setToken(result.accessToken);
       setUser(result.user);

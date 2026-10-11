@@ -6,8 +6,8 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { StudyNotes } from '@/components/paper-test/study-notes';
 import { ProgressRing } from '@/components/progress-ring';
-import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
 import type { AttemptAnswerState, QuestionDifficulty, SafeQuestion } from '@/types/api';
@@ -37,7 +37,14 @@ const QZ = {
   redDeep: '#B93030',
 } as const;
 
-type Feedback = { isCorrect: boolean; correctOptionId: number | null; explanation: string | null };
+type Feedback = {
+  isCorrect: boolean;
+  correctOptionId: number | null;
+  explanation: string | null;
+  revisionPoints?: string | null;
+  // The user skipped, but the answer and notes are still shown.
+  skipped?: boolean;
+};
 
 const QUESTION_TIME_SECONDS = 45;
 const DIFFICULTY_LEVEL: Record<QuestionDifficulty, number> = { EASY: 1, MEDIUM: 2, HARD: 3 };
@@ -68,7 +75,7 @@ interface OptionProps {
   onPress: (id: number) => void;
 }
 
-const OptionButton = React.memo(({ option, isSelected, isCorrectOption, isWrongSelected, disabled, onPress }: OptionProps) => {
+const OptionButton = React.memo(function OptionButton({ option, isSelected, isCorrectOption, isWrongSelected, disabled, onPress }: OptionProps) {
   let borderColor: string = QZ.line;
   let backgroundColor: string = QZ.card;
   let letterBg: string = QZ.bg;
@@ -150,9 +157,11 @@ export default function QuizScreen() {
   );
 
   // Cosmetic per-question countdown — pauses once an answer is checked, resets on the next question.
-  useEffect(() => {
+  const [timerIndex, setTimerIndex] = useState(index);
+  if (timerIndex !== index) {
+    setTimerIndex(index);
     setTimeLeft(QUESTION_TIME_SECONDS);
-  }, [index]);
+  }
 
   useEffect(() => {
     if (!currentQuestion || feedback) return;
@@ -188,30 +197,26 @@ export default function QuizScreen() {
           isCorrect: result.isCorrect,
         })
       );
-    } // eslint-disable-next-line no-useless-catch
-    catch (e) {
-      throw e;
     } finally {
       setSubmitting(false);
     }
   }
 
   async function skip() {
-    if (!token || !currentQuestion || submitting) return;
+    if (!token || !currentQuestion || submitting || feedback) return;
     setSubmitting(true);
     try {
-      await api.submitAnswer(token, Number(attemptId), currentQuestion.id, null);
+      // Skipping still reveals the correct answer, explanation and review points.
+      const result = await api.submitAnswer(token, Number(attemptId), currentQuestion.id, null);
       setAnswered((prev) =>
         new Map(prev).set(currentQuestion.id, {
           questionId: currentQuestion.id,
           selectedOptionId: null,
-          isCorrect: false,
+          isCorrect: result.isCorrect,
         })
       );
-      goNext();
-    } // eslint-disable-next-line no-useless-catch
-    catch (e) {
-      throw e;
+      setSelectedOptionId(null);
+      setFeedback({ ...result, skipped: true });
     } finally {
       setSubmitting(false);
     }
@@ -229,9 +234,6 @@ export default function QuizScreen() {
     try {
       await api.completeAttempt(token, Number(attemptId));
       router.replace(`/results/${attemptId}`);
-    } // eslint-disable-next-line no-useless-catch
-    catch (e) {
-      throw e;
     } finally {
       setSubmitting(false);
     }
@@ -344,6 +346,12 @@ export default function QuizScreen() {
             );
           })}
         </View>
+
+        {feedback && (
+          <View style={{ marginTop: 18 }}>
+            <StudyNotes explanation={feedback.explanation} revisionPoints={feedback.revisionPoints} />
+          </View>
+        )}
       </ScrollView>
 
       {/* ── Bottom: Check Answer / Skip ── */}
@@ -371,16 +379,15 @@ export default function QuizScreen() {
               <Ionicons name={feedback.isCorrect ? 'checkmark' : 'close'} size={17} color={QZ.card} />
             </View>
             <Text style={[styles.feedbackTitle, { color: feedback.isCorrect ? QZ.greenDeep : QZ.redDeep }]}>
-              {feedback.isCorrect ? 'Correct!' : 'Not Quite'}
+              {feedback.skipped ? 'Skipped — here is the answer' : feedback.isCorrect ? 'Correct!' : 'Not Quite'}
             </Text>
-            <Text style={styles.feedbackXp}>{feedback.isCorrect ? '+10 XP' : '+0 XP'}</Text>
           </View>
-          {feedback.explanation && <Text style={styles.feedbackExplain}>{feedback.explanation}</Text>}
           <Pressable onPress={isLastQuestion ? finish : goNext} disabled={submitting} style={styles.continueBtn}>
             <Text style={styles.continueBtnText}>{isLastQuestion ? 'Finish' : 'Continue'}</Text>
           </Pressable>
         </View>
       )}
+
     </View>
   );
 }
@@ -398,7 +405,7 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 34,
     height: 34,
-    borderRadius: 11,
+    borderRadius: 2,
     backgroundColor: QZ.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -415,8 +422,8 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  progressTrack: { flex: 1, height: 9, borderRadius: 100, backgroundColor: QZ.line, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 100 },
+  progressTrack: { flex: 1, height: 9, borderRadius: 2, backgroundColor: QZ.line, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2 },
   accuracyWrap: { alignItems: 'center', gap: 2 },
   accuracyPct: { fontSize: 9, fontWeight: '800', color: QZ.ink400, letterSpacing: 0.2 },
   timerText: { fontSize: 10, fontWeight: '800', color: QZ.ink900 },
@@ -431,7 +438,7 @@ const styles = StyleSheet.create({
     backgroundColor: QZ.purple50,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   yearTag: {
@@ -441,7 +448,7 @@ const styles = StyleSheet.create({
     backgroundColor: QZ.goldSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   qCount: { fontSize: 11.5, fontWeight: '700', color: QZ.ink400 },
@@ -450,7 +457,7 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   bodyContent: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 8 },
   questionText: { fontSize: 19, fontWeight: '800', color: QZ.ink900, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
-  questionImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 12 },
+  questionImage: { width: '100%', height: 200, borderRadius: 2, marginTop: 12 },
 
   // ── Options ──
   options: { marginTop: 24, gap: 12 },
@@ -459,11 +466,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 13,
     borderWidth: 2,
-    borderRadius: 16,
+    borderRadius: 2,
     padding: 14,
   },
   optionDimmed: { opacity: 0.55 },
-  optionLetter: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  optionLetter: { width: 30, height: 30, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
   optionLetterText: { fontSize: 13, fontWeight: '800' },
   optionText: { flex: 1, fontSize: 14.5, fontWeight: '600', color: QZ.ink900 },
 
@@ -473,7 +480,7 @@ const styles = StyleSheet.create({
   skipLinkText: { fontSize: 12.5, fontWeight: '600', color: QZ.ink400 },
   checkBtn: {
     backgroundColor: QZ.ink300,
-    borderRadius: 16,
+    borderRadius: 2,
     paddingVertical: 16,
     alignItems: 'center',
   },
@@ -509,14 +516,56 @@ const styles = StyleSheet.create({
     backgroundColor: QZ.goldSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 2,
     overflow: 'hidden',
   },
-  feedbackExplain: { fontSize: 12.5, color: QZ.ink600, fontWeight: '500', lineHeight: 19, marginTop: 10 },
+  feedbackExplain: { fontSize: 12.5, color: QZ.ink600, fontWeight: '500', lineHeight: 19, marginTop: 6 },
+
+  // ── Explanation & Revision cards ──
+  explanationBox: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  explanationLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: QZ.purple600,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  revisionBox: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: QZ.goldSoft,
+    borderRadius: 2,
+  },
+  revisionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+  },
+  revisionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: QZ.goldDeep,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  revisionText: {
+    fontSize: 12.5,
+    color: QZ.ink600,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+
   continueBtn: {
     marginTop: 14,
     backgroundColor: QZ.purple600,
-    borderRadius: 16,
+    borderRadius: 2,
     paddingVertical: 16,
     alignItems: 'center',
     // Same purple glow as check button
@@ -536,7 +585,7 @@ const styles = StyleSheet.create({
 
   primaryButton: {
     backgroundColor: QZ.purple600,
-    borderRadius: 14,
+    borderRadius: 2,
     paddingVertical: 14,
     paddingHorizontal: 28,
     ...Platform.select({

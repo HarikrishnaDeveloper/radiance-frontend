@@ -27,8 +27,8 @@ export default function AppTabs() {
           <TabTrigger name="practice" href="/practice" asChild>
             <TabButton>Practice</TabButton>
           </TabTrigger>
-          <TabTrigger name="journey" href="/journey" asChild>
-            <TabButton>Journey</TabButton>
+          <TabTrigger name="tests" href="/tests" asChild>
+            <TabButton>Tests</TabButton>
           </TabTrigger>
           <TabTrigger name="progress" href="/progress" asChild>
             <TabButton>Progress</TabButton>
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   innerContainer: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
+    borderRadius: 2,
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   tabButtonView: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: 2,
   },
   externalPressable: {
     flexDirection: 'row',

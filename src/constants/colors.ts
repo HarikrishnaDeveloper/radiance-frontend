@@ -16,10 +16,10 @@ export const COLORS = {
   white: '#FFFFFF',
   error: '#E53935',
   errorBg: '#FFF0F0',
-  purple: '#5B3FE0',
-  purpleDark: '#4429C0',
-  purpleSoft: '#EFEBFB',
-  loginBg: '#F6F4FC',
+  purple: '#7B2FBE',
+  purpleDark: '#5B1A9E',
+  purpleSoft: '#F3ECFB',
+  loginBg: '#FFFFFF',
 
   // New shades added for the Home/Practice/Journey/Progress redesign —
   // interpolated around the existing purple/purpleDark anchors, plus a few

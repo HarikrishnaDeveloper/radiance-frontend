@@ -5,9 +5,9 @@ import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View, useWi
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Toast, type ToastData } from '../toast';
 import { COLORS } from './colors';
 import { loginStyles as styles } from './login-styles';
-import { Toast, type ToastData } from '../toast';
 
 type Props = {
   phone: string;
@@ -40,7 +40,7 @@ export function WelcomeBackScreen({
 }: Props) {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isCompact = windowHeight < 700;
-  const heroSize = Math.min(windowWidth * 0.8, windowHeight * (isCompact ? 0.16 : 0.32), 320);
+  const heroSize = Math.min(windowWidth * 0.4, windowHeight * (isCompact ? 0.16 : 0.32), 320);
 
   return (
     <View style={styles.loginContainer}>
@@ -51,11 +51,11 @@ export function WelcomeBackScreen({
         keyboardVerticalOffset={Platform.select({ ios: 0, default: 0 })}>
         <SafeAreaView style={styles.loginSafeArea}>
           <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
+
             <Image
               style={{ width: heroSize, height: heroSize, alignSelf: 'center' }}
-              source={require('../../../assets/login/book.png')}
-              contentFit="cover"
-              contentPosition="top"
+              source={require('../../../assets/images/logo.png')}
+              contentFit="contain"
             />
           </Animated.View>
 
@@ -117,7 +117,7 @@ export function WelcomeBackScreen({
             </Pressable>
 
             <View style={[styles.signUpRow, isCompact && { marginTop: 20, paddingBottom: 8 }]}>
-              <Text style={styles.signUpLabel}>Don't have an account? </Text>
+              <Text style={styles.signUpLabel}>Don&apos;t have an account? </Text>
               <Pressable onPress={onGoToSignUp}>
                 <Text style={styles.signUpLink}>Sign Up</Text>
               </Pressable>

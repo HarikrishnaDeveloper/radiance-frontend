@@ -1,8 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
-import { ChooseUsernameScreen } from '@/components/login/choose-username-screen';
-import { ProfileSuccessScreen } from '@/components/login/profile-success-screen';
+
 import { ForgotOtpScreen } from '@/components/login/forgot-otp-screen';
 import { ForgotPasswordScreen } from '@/components/login/forgot-password-screen';
 import { ForgotPhoneScreen } from '@/components/login/forgot-phone-screen';
@@ -18,16 +17,14 @@ type Screen =
   | 'login'
   | 'phone'
   | 'otp'
-  | 'profile'
-  | 'profileSuccess'
   | 'forgotPhone'
   | 'forgotOtp'
   | 'forgotPassword';
 
 export default function LoginScreen() {
-  const { user, login, requestOtp, verifyOtp, completeProfile } = useAuth();
+  const { login, requestOtp, verifyOtp } = useAuth();
 
-  const [screen, setScreen] = useState<Screen>(user ? 'profile' : 'login');
+  const [screen, setScreen] = useState<Screen>('login');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
@@ -41,7 +38,7 @@ export default function LoginScreen() {
   }
   const [otpCode, setOtpCode] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
-  const [username, setUsername] = useState('');
+
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -127,8 +124,12 @@ export default function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await verifyOtp(fullPhone, otpCode);
-      setScreen('profile');
+      const verifiedUser = await verifyOtp(fullPhone, otpCode);
+      if (verifiedUser.profileCompleted) {
+        router.replace('/');
+      } else {
+        router.replace('/profile-setup');
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not reach the server');
     } finally {
@@ -151,39 +152,6 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleChooseUsername(details: {
-    fullName: string;
-    email?: string;
-    state?: string;
-    dateOfBirth?: string;
-    password: string;
-  }) {
-    const finalName = details.fullName.trim();
-    if (!finalName) {
-      setError('Enter your full name');
-      return;
-    }
-    if (details.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-    try {
-      await completeProfile({
-        name: finalName,
-        email: details.email,
-        state: details.state,
-        dateOfBirth: details.dateOfBirth,
-        password: details.password,
-      });
-      router.replace('/profile-success');
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not reach the server');
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   function goBackToPhone() {
     setError(null);
@@ -339,21 +307,6 @@ export default function LoginScreen() {
     );
   }
 
-  if (screen === 'profile') {
-    return (
-      <ChooseUsernameScreen
-        username={username}
-        onUsernameChange={setUsername}
-        error={error}
-        submitting={submitting}
-        onSubmit={handleChooseUsername}
-      />
-    );
-  }
-
-  if (screen === 'profileSuccess') {
-    return <ProfileSuccessScreen onContinue={() => router.replace('/')} />;
-  }
 
   if (screen === 'forgotPhone') {
     return (

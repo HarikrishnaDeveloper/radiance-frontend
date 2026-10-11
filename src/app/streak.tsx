@@ -319,8 +319,8 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 22,
     paddingBottom: 34,
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 38,
     height: 38,
-    borderRadius: 13,
+    borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   },
   milestoneCard: {
     backgroundColor: ST.card,
-    borderRadius: 22,
+    borderRadius: 2,
     padding: 19,
     ...Platform.select({
       ios: {
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   milestoneIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 2,
     backgroundColor: ST.goldSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -477,14 +477,14 @@ const styles = StyleSheet.create({
   },
   milestoneTrack: {
     height: 8,
-    borderRadius: 100,
+    borderRadius: 2,
     backgroundColor: ST.line,
     marginTop: 16,
     overflow: 'hidden',
   },
   milestoneFill: {
     height: '100%',
-    borderRadius: 100,
+    borderRadius: 2,
   },
   milestoneDaysRow: {
     flexDirection: 'row',
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    borderRadius: 20,
+    borderRadius: 2,
     padding: 16,
     borderWidth: 1,
     borderColor: '#DCEAFB',
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
   freezeIcon: {
     width: 46,
     height: 46,
-    borderRadius: 14,
+    borderRadius: 2,
     backgroundColor: ST.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   statCard: {
     width: '48%',
     backgroundColor: ST.card,
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 16,
     ...Platform.select({
       ios: {
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   statIcon: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 2,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   },
   calCard: {
     backgroundColor: ST.card,
-    borderRadius: 22,
+    borderRadius: 2,
     padding: 18,
     ...Platform.select({
       ios: {
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   calDay: {
     width: '12.5%',
     aspectRatio: 1,
-    borderRadius: 8,
+    borderRadius: 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: ST.bg,
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   ctaBtnWrap: {
-    borderRadius: 16,
+    borderRadius: 2,
     overflow: 'hidden',
     ...Platform.select({
       ios: {

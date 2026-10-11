@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 14,
+    borderRadius: 2,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
 
   modeCard: {
     backgroundColor: COLORS.purple,
-    borderRadius: 20,
+    borderRadius: 2,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   modeIcon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     paddingVertical: 9,
     paddingHorizontal: 16,
-    borderRadius: 100,
+    borderRadius: 2,
   },
   chipActive: { backgroundColor: COLORS.purple, borderColor: COLORS.purple },
   chipText: { fontSize: 12.5, fontWeight: '700', color: COLORS.gray },
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: 2,
     padding: 15,
     marginBottom: 12,
   },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   subjectBtn: {
     width: 34,
     height: 34,
-    borderRadius: 11,
+    borderRadius: 2,
     backgroundColor: COLORS.purpleSoft,
     alignItems: 'center',
     justifyContent: 'center',

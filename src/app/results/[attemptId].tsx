@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
 import type { AttemptResultsResponse } from '@/types/api';
@@ -60,6 +59,93 @@ function sessionStarCount(pct: number) {
   return 0;
 }
 
+function ReviewQuestionCard({ question, index }: { question: any; index: number }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasExtra = !!(question.explanation || question.revisionPoints);
+
+  return (
+    <View style={styles.questionCard}>
+      <View style={styles.questionMetaRow}>
+        <Text style={styles.questionMetaText}>
+          Q{index + 1} · {question.category.name}
+        </Text>
+        {question.questionPaper && (
+          <Text style={styles.questionPaperTag}>
+            UPSC {question.questionPaper.year}
+          </Text>
+        )}
+      </View>
+      
+      <Text style={styles.questionText}>{question.text}</Text>
+
+      <View style={styles.optionsList}>
+        {question.options.map((option: any) => {
+          const isSelected = option.id === question.selectedOptionId;
+          const isCorrect = option.isCorrect;
+          
+          let borderColor: string = RC.line;
+          let letterBg: string = RC.bg;
+          let letterColor: string = RC.ink600;
+          let fontColor: string = RC.ink900;
+
+          if (isCorrect) {
+            borderColor = RC.green;
+            letterBg = RC.green;
+            letterColor = '#fff';
+          } else if (isSelected) {
+            borderColor = RC.red;
+            letterBg = RC.red;
+            letterColor = '#fff';
+          }
+
+          return (
+            <View key={option.id} style={[styles.optionRow, { borderColor }]}>
+              <View style={[styles.optionLetterBox, { backgroundColor: letterBg }]}>
+                <Text style={[styles.optionLetterText, { color: letterColor }]}>
+                  {option.label}
+                </Text>
+              </View>
+              <Text style={[styles.optionTextLabel, { color: fontColor }]}>
+                {option.text}
+              </Text>
+              {isCorrect && (
+                <Ionicons name="checkmark-circle" size={20} color={RC.green} style={styles.optionFeedbackIcon} />
+              )}
+              {isSelected && !isCorrect && (
+                <Ionicons name="close-circle" size={20} color={RC.red} style={styles.optionFeedbackIcon} />
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {hasExtra && !isExpanded && (
+        <Pressable style={styles.expandBtn} onPress={() => setIsExpanded(true)}>
+          <Ionicons name="bulb" size={16} color={RC.purple600} />
+          <Text style={styles.expandBtnText}>View Explanation & Review Points</Text>
+        </Pressable>
+      )}
+
+      {isExpanded && question.explanation && (
+        <View style={styles.explanationBox}>
+          <Text style={styles.explanationTitle}>Explanation</Text>
+          <Text style={styles.explanationText}>{question.explanation}</Text>
+        </View>
+      )}
+
+      {isExpanded && question.revisionPoints && (
+        <View style={styles.revisionBox}>
+          <View style={styles.revisionTitleRow}>
+            <Ionicons name="bookmark" size={13} color={RC.goldDeep} />
+            <Text style={styles.revisionTitle}>UPSC Revision Point</Text>
+          </View>
+          <Text style={styles.revisionText}>{question.revisionPoints}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function ResultsScreen() {
   const { attemptId } = useLocalSearchParams<{ attemptId: string }>();
   const { token } = useAuth();
@@ -101,10 +187,6 @@ export default function ResultsScreen() {
     timeString = `${m}:${s.toString().padStart(2, '0')}`;
   }
 
-  // Calculate XP (Base: 15 XP per correct answer)
-  const baseXP = results.correctCount * 15;
-  const streakBonusXP = streak > 0 ? 20 : 0;
-  const totalXP = baseXP + streakBonusXP;
 
   const handleReviewScroll = () => {
     if (scrollViewRef.current && reviewY > 0) {
@@ -133,9 +215,9 @@ export default function ResultsScreen() {
           <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
             {/* Confetti particles simulated visually */}
             <View style={[styles.confetti, { top: 20, left: 30, backgroundColor: RC.gold, transform: [{ rotate: '20deg' }] }]} />
-            <View style={[styles.confetti, { top: 50, left: 80, backgroundColor: '#fff', borderRadius: 3 }]} />
+            <View style={[styles.confetti, { top: 50, left: 80, backgroundColor: '#fff', borderRadius: 2 }]} />
             <View style={[styles.confetti, { top: 15, right: 50, backgroundColor: RC.purple400, transform: [{ rotate: '-15deg' }] }]} />
-            <View style={[styles.confetti, { top: 70, right: 90, backgroundColor: RC.gold, borderRadius: 3 }]} />
+            <View style={[styles.confetti, { top: 70, right: 90, backgroundColor: RC.gold, borderRadius: 2 }]} />
             <View style={[styles.confetti, { top: 35, left: 170, backgroundColor: '#fff', transform: [{ rotate: '40deg' }] }]} />
             
             <View style={styles.trophyWrap}>
@@ -146,7 +228,7 @@ export default function ResultsScreen() {
                 {currentPaper ? `UPSC ${currentPaper.year}` : currentCategory}
               </Text>
               <Text style={styles.celebrateTitle}>Quiz Complete!</Text>
-              <Text style={styles.celebrateSub}>Great work — you're one step closer to your goal.</Text>
+              <Text style={styles.celebrateSub}>Great work — you&apos;re one step closer to your goal.</Text>
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -187,41 +269,22 @@ export default function ResultsScreen() {
             
             <View style={styles.statCard}>
               <View style={[styles.statIcon, { backgroundColor: RC.goldSoft }]}>
-                <Ionicons name="flash" size={16} color={RC.goldDeep} />
+                <Ionicons name="analytics" size={16} color={RC.goldDeep} />
               </View>
-              <Text style={styles.statVal}>+{totalXP} XP</Text>
-              <Text style={styles.statLabel}>Earned</Text>
+              <Text style={styles.statVal}>{results.scorePercent}%</Text>
+              <Text style={styles.statLabel}>Accuracy</Text>
             </View>
           </View>
 
-          {/* Streak Bonus Card */}
+          {/* Streak Card */}
           {streak > 0 && (
             <View style={styles.bonusCard}>
               <View style={styles.bonusIcon}>
                 <Ionicons name="flame" size={20} color={RC.gold} />
               </View>
               <View style={styles.bonusInfo}>
-                <Text style={styles.bonusTitle}>{streak} Day Streak Bonus</Text>
-                <Text style={styles.bonusSub}>Extra reward for staying consistent</Text>
-              </View>
-              <Text style={styles.bonusXp}>+{streakBonusXP} XP</Text>
-            </View>
-          )}
-
-          {/* Unlock Card */}
-          {results.scorePercent >= 80 && (
-            <View style={styles.unlockCard}>
-              <LinearGradient
-                colors={['#FFD37A', RC.gold]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.unlockBadge}
-              >
-                <Ionicons name="star" size={20} color="#fff" />
-              </LinearGradient>
-              <View>
-                <Text style={styles.unlockTitle}>Checkpoint Cleared</Text>
-                <Text style={styles.unlockSub}>New achievement added to your profile</Text>
+                <Text style={styles.bonusTitle}>{streak} Day Streak</Text>
+                <Text style={styles.bonusSub}>Practise again tomorrow to keep it going</Text>
               </View>
             </View>
           )}
@@ -257,78 +320,7 @@ export default function ResultsScreen() {
           {/* Question Cards */}
           <View style={styles.reviewList}>
             {results.questions.map((question, i) => (
-              <View key={question.id} style={styles.questionCard}>
-                <View style={styles.questionMetaRow}>
-                  <Text style={styles.questionMetaText}>
-                    Q{i + 1} · {question.category.name}
-                  </Text>
-                  {question.questionPaper && (
-                    <Text style={styles.questionPaperTag}>
-                      UPSC {question.questionPaper.year}
-                    </Text>
-                  )}
-                </View>
-                
-                <Text style={styles.questionText}>{question.text}</Text>
-
-                <View style={styles.optionsList}>
-                  {question.options.map((option) => {
-                    const isSelected = option.id === question.selectedOptionId;
-                    const isCorrect = option.isCorrect;
-                    
-                    let borderColor: string = RC.line;
-                    let letterBg: string = RC.bg;
-                    let letterColor: string = RC.ink600;
-                    let fontColor: string = RC.ink900;
-
-                    if (isCorrect) {
-                      borderColor = RC.green;
-                      letterBg = RC.green;
-                      letterColor = '#fff';
-                    } else if (isSelected) {
-                      borderColor = RC.red;
-                      letterBg = RC.red;
-                      letterColor = '#fff';
-                    }
-
-                    return (
-                      <View key={option.id} style={[styles.optionRow, { borderColor }]}>
-                        <View style={[styles.optionLetterBox, { backgroundColor: letterBg }]}>
-                          <Text style={[styles.optionLetterText, { color: letterColor }]}>
-                            {option.label}
-                          </Text>
-                        </View>
-                        <Text style={[styles.optionTextLabel, { color: fontColor }]}>
-                          {option.text}
-                        </Text>
-                        {isCorrect && (
-                          <Ionicons name="checkmark-circle" size={20} color={RC.green} style={styles.optionFeedbackIcon} />
-                        )}
-                        {isSelected && !isCorrect && (
-                          <Ionicons name="close-circle" size={20} color={RC.red} style={styles.optionFeedbackIcon} />
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-
-                {question.explanation && (
-                  <View style={styles.explanationBox}>
-                    <Text style={styles.explanationTitle}>Explanation</Text>
-                    <Text style={styles.explanationText}>{question.explanation}</Text>
-                  </View>
-                )}
-
-                {question.revisionPoints && (
-                  <View style={styles.revisionBox}>
-                    <View style={styles.revisionTitleRow}>
-                      <Ionicons name="bookmark" size={13} color={RC.goldDeep} />
-                      <Text style={styles.revisionTitle}>UPSC Revision Point</Text>
-                    </View>
-                    <Text style={styles.revisionText}>{question.revisionPoints}</Text>
-                  </View>
-                )}
-              </View>
+              <ReviewQuestionCard key={question.id} question={question} index={i} />
             ))}
           </View>
         </View>
@@ -361,8 +353,8 @@ const styles = StyleSheet.create({
   celebrate: {
     paddingBottom: 48,
     paddingHorizontal: 22,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
     position: 'relative',
     overflow: 'hidden',
     ...Platform.select({
@@ -427,7 +419,7 @@ const styles = StyleSheet.create({
   // ── Score Card ──
   scoreCard: {
     backgroundColor: RC.card,
-    borderRadius: 24,
+    borderRadius: 2,
     padding: 22,
     flexDirection: 'row',
     alignItems: 'center',
@@ -501,7 +493,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: RC.card,
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 15,
     ...Platform.select({
       ios: {
@@ -518,7 +510,7 @@ const styles = StyleSheet.create({
   statIcon: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: 2,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -545,13 +537,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFBF4',
     borderWidth: 1,
     borderColor: '#FBE7BE',
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 15,
   },
   bonusIcon: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 2,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
@@ -594,7 +586,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 13,
     backgroundColor: RC.card,
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 15,
     ...Platform.select({
       ios: {
@@ -633,7 +625,7 @@ const styles = StyleSheet.create({
     gap: 11,
   },
   primaryBtnWrap: {
-    borderRadius: 16,
+    borderRadius: 2,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -661,7 +653,7 @@ const styles = StyleSheet.create({
   },
   btnSecondary: {
     backgroundColor: RC.card,
-    borderRadius: 16,
+    borderRadius: 2,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
@@ -707,7 +699,7 @@ const styles = StyleSheet.create({
   },
   questionCard: {
     backgroundColor: RC.card,
-    borderRadius: 20,
+    borderRadius: 2,
     padding: 18,
     ...Platform.select({
       ios: {
@@ -740,7 +732,7 @@ const styles = StyleSheet.create({
     backgroundColor: RC.goldSoft,
     paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: 6,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   questionText: {
@@ -757,7 +749,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderRadius: 12,
+    borderRadius: 2,
     paddingVertical: 10,
     paddingHorizontal: 12,
     gap: 10,
@@ -765,7 +757,7 @@ const styles = StyleSheet.create({
   optionLetterBox: {
     width: 24,
     height: 24,
-    borderRadius: 6,
+    borderRadius: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -780,6 +772,23 @@ const styles = StyleSheet.create({
   },
   optionFeedbackIcon: {
     marginLeft: 6,
+  },
+  expandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    marginTop: 16,
+    backgroundColor: RC.purple50,
+    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: RC.purple100,
+  },
+  expandBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: RC.purple600,
   },
   explanationBox: {
     marginTop: 16,
@@ -803,7 +812,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 12,
     backgroundColor: RC.goldSoft,
-    borderRadius: 12,
+    borderRadius: 2,
   },
   revisionTitleRow: {
     flexDirection: 'row',

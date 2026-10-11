@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   safeArea: { paddingHorizontal: 22, paddingVertical: 24 },
   title: { fontSize: 26, fontWeight: '800', color: COLORS.navy },
   subtitle: { fontSize: 14, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
-  progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 16, backgroundColor: COLORS.grayBorder },
-  progressFill: { height: 8, borderRadius: 4, backgroundColor: COLORS.purple },
+  progressTrack: { height: 8, borderRadius: 2, overflow: 'hidden', marginTop: 16, backgroundColor: COLORS.grayBorder },
+  progressFill: { height: 8, borderRadius: 2, backgroundColor: COLORS.purple },
   progressCaption: { fontSize: 12, color: COLORS.gray, marginTop: 6, fontWeight: '500' },
 });

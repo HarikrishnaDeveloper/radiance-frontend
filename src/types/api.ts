@@ -1,5 +1,13 @@
 export type AttemptMode = 'FULL_PAPER' | 'CATEGORY_PRACTICE';
 
+export type UserProfileData = {
+  fullName: string;
+  targetExam: string;
+  preparationLevel: string;
+  targetAttempt?: string | null;
+  preparationFocus: string;
+};
+
 export type AuthUser = {
   id: string;
   username: string | null;
@@ -7,6 +15,8 @@ export type AuthUser = {
   phone?: string | null;
   email?: string | null;
   state?: string | null;
+  profileCompleted: boolean;
+  profile?: UserProfileData | null;
   isTestUser: boolean;
   isPremium: boolean;
 };
@@ -96,6 +106,56 @@ export type PaperSummary = {
   title: string | null;
   examType: { code: string; name: string };
   questionCount: number;
+  // Only on GET /api/papers — the dashboard's paper list omits these.
+  durationSeconds?: number;
+  locked?: boolean;
+  isFree?: boolean;
+  attemptCount?: number;
+  bestScore?: { score: number; maxScore: number; attemptId: number } | null;
+  inProgressAttemptId?: number | null;
+};
+
+// EXAM: one overall timer, UPSC marking, feedback only after submitting.
+// PRACTICE: untimed, explanation + review points right after each answer.
+export type TestMode = 'EXAM' | 'PRACTICE';
+
+export type Marking = { correct: number; wrong: number };
+
+export type PaperSection = {
+  categoryId: number;
+  name: string;
+  questionCount: number;
+  durationSeconds: number;
+  inProgressAttemptId: number | null;
+};
+
+export type PaperAttemptSummary = {
+  id: number;
+  testMode: TestMode;
+  section: { id: number; name: string } | null;
+  startedAt: string;
+  completedAt: string | null;
+  totalQuestions: number;
+  correctCount: number;
+  wrongCount: number;
+  skippedCount: number;
+  score: number | null;
+  maxScore: number | null;
+};
+
+export type PaperDetailResponse = {
+  id: number;
+  year: number;
+  title: string | null;
+  examType: { code: string; name: string };
+  questionCount: number;
+  durationSeconds: number;
+  marking: Marking & { maxScore: number };
+  locked: boolean;
+  isFree: boolean;
+  sections: PaperSection[];
+  inProgressAttemptId: number | null;
+  attempts: PaperAttemptSummary[];
 };
 
 export type ContinueAttempt = {
@@ -131,7 +191,10 @@ export type ContinueLearning =
 export type UserStats = {
   accuracy: number;
   questionsSolved: number;
+  paperTestsCompleted?: number;
 };
+
+export type WeakArea = { categoryId: number; name: string; answered: number; accuracy: number };
 
 export type TodaysFocus = {
   answeredToday: boolean;
@@ -142,6 +205,7 @@ export type DashboardResponse = {
   streak: number;
   longestStreak: number;
   stats: UserStats;
+  weakAreas?: WeakArea[];
   recentActivity: boolean[];
   todaysFocus: TodaysFocus;
   continueAttempt: ContinueAttempt | null;
@@ -175,6 +239,7 @@ export type StreakResponse = {
 export type AttemptHistoryItem = {
   id: number;
   mode: AttemptMode;
+  testMode?: TestMode;
   startedAt: string;
   completedAt: string | null;
   totalQuestions: number;
@@ -194,6 +259,8 @@ export type QuestionDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
 export type SafeQuestion = {
   id: number;
+  // Number in the original printed paper; only set for past-paper questions.
+  questionNo?: number | null;
   text: string;
   questionImage?: string | null;
   categoryId: number;
@@ -258,12 +325,32 @@ export type DailyChallengeProgress = {
   completedAt: string | null;
 };
 
+export type DailyChallengeReviewQuestion = {
+  id: number;
+  questionNo: number | null;
+  text: string;
+  questionImage: string | null;
+  explanation: string | null;
+  revisionPoints: string | null;
+  isVoided: boolean;
+  category: { id: number; name: string };
+  questionPaper: { year: number } | null;
+  options: { id: number; label: string; text: string; isCorrect: boolean }[];
+  correctOptionId: number | null;
+  selectedOptionId: number | null;
+  isCorrect: boolean;
+};
+
 export type DailyChallengeResponse = {
   id: number;
   questionCount: number;
   questions: SafeQuestion[];
   progress: DailyChallengeProgress | null;
+  // Present once today's challenge is completed.
+  review?: DailyChallengeReviewQuestion[] | null;
 };
+
+export type DailyAnswerFeedback = SubmitAnswerResponse & { selectedOptionId: number | null };
 
 export type DailyChallengeSubmitResponse = {
   challengeId: number;
@@ -279,6 +366,17 @@ export type AttemptAnswerState = {
   isCorrect: boolean;
 };
 
+// An unfinished EXAM attempt returns only the saved choice; everything else
+// returns the feedback too, so a resumed PRACTICE test can show it again.
+export type PaperAnswerState = {
+  questionId: number;
+  selectedOptionId: number | null;
+  isCorrect?: boolean;
+  correctOptionId?: number | null;
+  explanation?: string | null;
+  revisionPoints?: string | null;
+};
+
 export type AttemptDetailResponse = {
   id: number;
   mode: AttemptMode;
@@ -288,11 +386,27 @@ export type AttemptDetailResponse = {
   answers: AttemptAnswerState[];
 };
 
+export type PaperAttemptDetailResponse = Omit<AttemptDetailResponse, 'answers'> & {
+  testMode: TestMode;
+  startedAt: string;
+  durationSeconds: number | null;
+  deadline: string | null;
+  serverNow: string;
+  paper: { id: number; year: number; title: string | null } | null;
+  section: { id: number; name: string } | null;
+  answers: PaperAnswerState[];
+};
+
 export type SubmitAnswerResponse = {
   isCorrect: boolean;
   correctOptionId: number | null;
   explanation: string | null;
+  revisionPoints: string | null;
 };
+
+export type SavePaperAnswerResponse =
+  | { saved: true; selectedOptionId: number | null }
+  | (SubmitAnswerResponse & { selectedOptionId: number | null; saved?: undefined });
 
 export type CompleteAttemptResponse = {
   id: number;
@@ -301,6 +415,57 @@ export type CompleteAttemptResponse = {
   wrongCount: number;
   skippedCount: number;
   scorePercent: number;
+  score?: number | null;
+  maxScore?: number | null;
+};
+
+export type SectionResult = {
+  categoryId: number;
+  name: string;
+  total: number;
+  correct: number;
+  wrong: number;
+  skipped: number;
+  score: number;
+  maxScore: number;
+  accuracy: number;
+};
+
+export type PaperResultQuestion = {
+  id: number;
+  questionNo: number | null;
+  text: string;
+  questionImage: string | null;
+  explanation: string | null;
+  revisionPoints: string | null;
+  isVoided: boolean;
+  category: { id: number; name: string };
+  options: { id: number; label: string; text: string; isCorrect: boolean }[];
+  correctOptionId: number | null;
+  selectedOptionId: number | null;
+  isCorrect: boolean;
+};
+
+export type PaperResultsResponse = {
+  id: number;
+  mode: AttemptMode;
+  testMode: TestMode;
+  paper: { id: number; year: number; title: string | null } | null;
+  section: { id: number; name: string } | null;
+  totalQuestions: number;
+  correctCount: number;
+  wrongCount: number;
+  skippedCount: number;
+  score: number;
+  maxScore: number;
+  marking: Marking;
+  startedAt: string;
+  completedAt: string;
+  timeTakenSeconds: number;
+  durationSeconds: number | null;
+  scorePercent: number;
+  sections: SectionResult[];
+  questions: PaperResultQuestion[];
 };
 
 export type ResultOption = SafeOption & { isCorrect: boolean };

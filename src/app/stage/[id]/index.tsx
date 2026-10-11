@@ -1,25 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { StudyNotes } from '@/components/paper-test/study-notes';
 import { ProgressRing } from '@/components/progress-ring';
 import { StarRating } from '@/components/star-rating';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { ApiError, api } from '@/lib/api-client';
-import type { QuestionDifficulty, SafeQuestion, StageDetailResponse, StageSubmitResponse, StreakResponse, SubmitAnswerResponse } from '@/types/api';
+import type { QuestionDifficulty, StageDetailResponse, StageSubmitResponse, StreakResponse, SubmitAnswerResponse } from '@/types/api';
 
-const XP_PER_CORRECT = 15;
-const STREAK_BONUS_XP = 20;
 const STREAK_BONUS_THRESHOLD = 2;
 const QUESTION_TIME_SECONDS = 45;
 const DIFFICULTY_LEVEL: Record<QuestionDifficulty, number> = { EASY: 1, MEDIUM: 2, HARD: 3 };
 
-type Feedback = SubmitAnswerResponse;
+// `skipped`: the user skipped, but the answer and notes are still shown.
+type Feedback = SubmitAnswerResponse & { skipped?: boolean };
 
 function formatElapsed(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
@@ -55,7 +55,7 @@ interface OptionProps {
   onPress: (id: number) => void;
 }
 
-const OptionButton = React.memo(({ option, isSelected, isCorrectOption, isWrongSelected, disabled, onPress }: OptionProps) => {
+const OptionButton = React.memo(function OptionButton({ option, isSelected, isCorrectOption, isWrongSelected, disabled, onPress }: OptionProps) {
   let borderColor: string = COLORS.grayBorder;
   let backgroundColor: string = COLORS.white;
   let letterBg: string = COLORS.loginBg;
@@ -114,7 +114,7 @@ export default function StageScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [streak, setStreak] = useState<StreakResponse | null>(null);
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME_SECONDS);
-  const startTimeRef = useRef(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   useEffect(() => {
     if (!token || !id) return;
@@ -138,9 +138,11 @@ export default function StageScreen() {
   );
 
   // Cosmetic per-question countdown — pauses once an answer is checked, resets on the next question.
-  useEffect(() => {
+  const [timerIndex, setTimerIndex] = useState(index);
+  if (timerIndex !== index) {
+    setTimerIndex(index);
     setTimeLeft(QUESTION_TIME_SECONDS);
-  }, [index]);
+  }
 
   useEffect(() => {
     if (!currentQuestion || feedback) return;
@@ -184,7 +186,7 @@ export default function StageScreen() {
         selectedOptionId: finalAnswers.get(q.id)?.selectedOptionId ?? null,
       }));
       const submitResult = await api.submitStage(token, stage.id, payload);
-      setElapsedSeconds(Math.round((Date.now() - startTimeRef.current) / 1000));
+      setElapsedSeconds(Math.round((Date.now() - startTime) / 1000));
       setResult(submitResult);
     } finally {
       setSubmitting(false);
@@ -194,21 +196,14 @@ export default function StageScreen() {
   async function skip() {
     if (!token || !stage || !currentQuestion || submitting || feedback) return;
     setSubmitting(true);
-    let nextAnswers: Map<number, AnswerRecord> = answers;
     try {
-      await api.checkStageAnswer(token, stage.id, currentQuestion.id, null);
-      nextAnswers = new Map(answers).set(currentQuestion.id, { selectedOptionId: null, isCorrect: false });
-      setAnswers(nextAnswers);
+      // Skipping still reveals the correct answer, explanation and review points.
+      const result = await api.checkStageAnswer(token, stage.id, currentQuestion.id, null);
+      setAnswers((prev) => new Map(prev).set(currentQuestion.id, { selectedOptionId: null, isCorrect: result.isCorrect }));
+      setSelectedOptionId(null);
+      setFeedback({ ...result, skipped: true });
     } finally {
       setSubmitting(false);
-    }
-    const isLast = index === stage.questions.length - 1;
-    setSelectedOptionId(null);
-    setFeedback(null);
-    if (isLast) {
-      await finishStage(nextAnswers);
-    } else {
-      setIndex((i) => i + 1);
     }
   }
 
@@ -240,7 +235,6 @@ export default function StageScreen() {
   }
 
   if (result) {
-    const xpEarned = result.correctAnswers * XP_PER_CORRECT;
     const showStreakBonus = !!streak && streak.streak >= STREAK_BONUS_THRESHOLD;
     const wrongAnswers = result.completedQuestions - result.correctAnswers;
 
@@ -257,7 +251,7 @@ export default function StageScreen() {
                   Stage {stage.stageNumber} · {stage.category.name}
                 </Text>
                 <Text style={completeStyles.celebrateTitle}>Quiz Complete!</Text>
-                <Text style={completeStyles.celebrateSub}>Great work — you're one step closer to your goal.</Text>
+                <Text style={completeStyles.celebrateSub}>Great work — you&apos;re one step closer to your goal.</Text>
               </View>
             </SafeAreaView>
           </LinearGradient>
@@ -292,10 +286,10 @@ export default function StageScreen() {
               </View>
               <View style={completeStyles.statCard}>
                 <View style={[completeStyles.statIcon, { backgroundColor: COLORS.goldSoft }]}>
-                  <Ionicons name="flash" size={16} color={COLORS.goldDeep} />
+                  <Ionicons name="star" size={16} color={COLORS.goldDeep} />
                 </View>
-                <Text style={completeStyles.statVal}>+{xpEarned} XP</Text>
-                <Text style={completeStyles.statLabel}>Earned</Text>
+                <Text style={completeStyles.statVal}>{result.starsEarned}/3</Text>
+                <Text style={completeStyles.statLabel}>Stars</Text>
               </View>
             </View>
 
@@ -305,21 +299,20 @@ export default function StageScreen() {
                   <Ionicons name="flame" size={19} color={COLORS.gold} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={completeStyles.bonusTitle}>{streak!.streak} Day Streak Bonus</Text>
-                  <Text style={completeStyles.bonusSub}>Extra reward for staying consistent</Text>
+                  <Text style={completeStyles.bonusTitle}>{streak!.streak} Day Streak</Text>
+                  <Text style={completeStyles.bonusSub}>Practise again tomorrow to keep it going</Text>
                 </View>
-                <Text style={completeStyles.bonusXp}>+{STREAK_BONUS_XP} XP</Text>
               </View>
             )}
 
-            {result.firstCompletion && (
+            {result.nextStageUnlocked && result.nextStageNumber !== null && (
               <View style={completeStyles.unlockCard}>
                 <View style={completeStyles.unlockBadge}>
                   <Ionicons name="star" size={20} color={COLORS.white} />
                 </View>
                 <View>
-                  <Text style={completeStyles.unlockTitle}>Checkpoint Cleared</Text>
-                  <Text style={completeStyles.unlockSub}>New achievement added to your profile</Text>
+                  <Text style={completeStyles.unlockTitle}>Stage {result.nextStageNumber} unlocked</Text>
+                  <Text style={completeStyles.unlockSub}>Keep going in {stage.category.name}</Text>
                 </View>
               </View>
             )}
@@ -432,6 +425,12 @@ export default function StageScreen() {
             );
           })}
         </View>
+
+        {feedback && (
+          <View style={{ marginTop: 18 }}>
+            <StudyNotes explanation={feedback.explanation} revisionPoints={feedback.revisionPoints} />
+          </View>
+        )}
       </ScrollView>
 
       {!feedback && (
@@ -457,16 +456,15 @@ export default function StageScreen() {
               <Ionicons name={feedback.isCorrect ? 'checkmark' : 'close'} size={16} color={COLORS.white} />
             </View>
             <Text style={[styles.feedbackTitle, { color: feedback.isCorrect ? '#158A50' : '#B93030' }]}>
-              {feedback.isCorrect ? 'Correct!' : 'Not Quite'}
+              {feedback.skipped ? 'Skipped — here is the answer' : feedback.isCorrect ? 'Correct!' : 'Not Quite'}
             </Text>
-            <Text style={styles.feedbackXp}>{feedback.isCorrect ? `+${XP_PER_CORRECT} XP` : '+0 XP'}</Text>
           </View>
-          {feedback.explanation && <Text style={styles.feedbackExplain}>{feedback.explanation}</Text>}
           <Pressable onPress={goNext} disabled={submitting} style={styles.continueBtn}>
             <Text style={styles.continueBtnText}>{isLastQuestion ? 'Finish' : 'Continue'}</Text>
           </Pressable>
         </View>
       )}
+
     </View>
   );
 }
@@ -480,40 +478,40 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 34,
     height: 34,
-    borderRadius: 11,
+    borderRadius: 2,
     backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  progressTrack: { flex: 1, height: 9, borderRadius: 100, backgroundColor: COLORS.grayBorder, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 100 },
+  progressTrack: { flex: 1, height: 9, borderRadius: 2, backgroundColor: COLORS.grayBorder, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2 },
   accuracyWrap: { alignItems: 'center', gap: 2 },
   accuracyPct: { fontSize: 9, fontWeight: '800', color: COLORS.grayLight, letterSpacing: 0.2 },
   timerText: { fontSize: 10, fontWeight: '800', color: COLORS.navy },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
   metaLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subjectTag: { fontSize: 11, fontWeight: '800', color: COLORS.purple, backgroundColor: COLORS.purpleSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
-  yearTag: { fontSize: 11, fontWeight: '700', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
+  subjectTag: { fontSize: 11, fontWeight: '800', color: COLORS.purple, backgroundColor: COLORS.purpleSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 2 },
+  yearTag: { fontSize: 11, fontWeight: '700', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 2 },
   stageTag: { fontSize: 11.5, fontWeight: '600', color: COLORS.grayLight },
   qCount: { fontSize: 11.5, fontWeight: '700', color: COLORS.grayLight },
 
   body: { flex: 1 },
   bodyContent: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 8 },
   questionText: { fontSize: 19, fontWeight: '800', color: COLORS.navy, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
-  questionImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 12 },
+  questionImage: { width: '100%', height: 200, borderRadius: 2, marginTop: 12 },
 
   options: { marginTop: 22, gap: 12 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 13, borderWidth: 2, borderRadius: 16, padding: 14 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 13, borderWidth: 2, borderRadius: 2, padding: 14 },
   optionDimmed: { opacity: 0.55 },
-  optionLetter: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  optionLetter: { width: 30, height: 30, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
   optionLetterText: { fontSize: 13, fontWeight: '800' },
   optionText: { flex: 1, fontSize: 14.5, fontWeight: '600', color: COLORS.navy },
 
   bottomArea: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18, gap: 8 },
   skipLink: { alignItems: 'center', paddingVertical: 4 },
   skipLinkText: { fontSize: 12.5, fontWeight: '600', color: COLORS.grayLight },
-  checkBtn: { backgroundColor: COLORS.grayLight, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  checkBtn: { backgroundColor: COLORS.grayLight, borderRadius: 2, paddingVertical: 16, alignItems: 'center' },
   checkBtnEnabled: { backgroundColor: COLORS.purple },
   checkBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
 
@@ -523,9 +521,51 @@ const styles = StyleSheet.create({
   feedbackTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   feedbackIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   feedbackTitle: { fontSize: 15, fontWeight: '800' },
-  feedbackXp: { marginLeft: 'auto', fontSize: 12, fontWeight: '800', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
-  feedbackExplain: { fontSize: 12.5, color: COLORS.gray, fontWeight: '500', lineHeight: 18, marginTop: 10 },
-  continueBtn: { marginTop: 14, backgroundColor: COLORS.purple, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  feedbackXp: { marginLeft: 'auto', fontSize: 12, fontWeight: '800', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 2 },
+  feedbackExplain: { fontSize: 12.5, color: COLORS.gray, fontWeight: '500', lineHeight: 18, marginTop: 6 },
+
+  // ── Explanation & Revision cards ──
+  explanationBox: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  explanationLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.purple,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  revisionBox: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: COLORS.goldSoft,
+    borderRadius: 2,
+  },
+  revisionTitleRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    marginBottom: 4,
+  },
+  revisionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.goldDeep,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.3,
+  },
+  revisionText: {
+    fontSize: 12.5,
+    color: COLORS.gray,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+
+  continueBtn: { marginTop: 14, backgroundColor: COLORS.purple, borderRadius: 2, paddingVertical: 16, alignItems: 'center' },
   continueBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
 });
 
@@ -557,7 +597,7 @@ const completeStyles = StyleSheet.create({
 
   scoreCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 24,
+    borderRadius: 2,
     padding: 22,
     flexDirection: 'row',
     alignItems: 'center',
@@ -573,8 +613,8 @@ const completeStyles = StyleSheet.create({
   scoreVal: { fontSize: 14, fontWeight: '800', color: COLORS.navy },
 
   statGrid: { flexDirection: 'row', gap: 12, marginTop: 14 },
-  statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 18, padding: 15 },
-  statIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 2, padding: 15 },
+  statIcon: { width: 32, height: 32, borderRadius: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   statVal: { fontSize: 17, fontWeight: '800', color: COLORS.navy, letterSpacing: -0.2 },
   statLabel: { fontSize: 11, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
 
@@ -586,13 +626,13 @@ const completeStyles = StyleSheet.create({
     backgroundColor: COLORS.goldSoft,
     borderWidth: 1,
     borderColor: '#FBE7BE',
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 15,
   },
   bonusIcon: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 2,
     backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
@@ -607,7 +647,7 @@ const completeStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 13,
     backgroundColor: COLORS.white,
-    borderRadius: 18,
+    borderRadius: 2,
     padding: 15,
   },
   unlockBadge: {
@@ -624,7 +664,7 @@ const completeStyles = StyleSheet.create({
   actions: { paddingHorizontal: 22, paddingTop: 16, paddingBottom: 20 },
   btnPrimary: {
     backgroundColor: COLORS.purple700,
-    borderRadius: 16,
+    borderRadius: 2,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -635,7 +675,7 @@ const completeStyles = StyleSheet.create({
   btnSecondary: {
     marginTop: 11,
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: 2,
     paddingVertical: 15,
     alignItems: 'center',
   },

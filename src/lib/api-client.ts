@@ -9,10 +9,15 @@ import type {
   CompleteAttemptResponse,
   ContinueLearning,
   CreateSubscriptionResponse,
+  DailyAnswerFeedback,
   DailyChallengeResponse,
   DailyChallengeSubmitResponse,
   DashboardResponse,
+  PaperAttemptDetailResponse,
+  PaperDetailResponse,
+  PaperResultsResponse,
   PaperSummary,
+  SavePaperAnswerResponse,
   StageDetailResponse,
   StageResultsResponse,
   StageSubmitResponse,
@@ -20,11 +25,25 @@ import type {
   SubmitAnswerResponse,
   AttemptResultsResponse,
   SubscriptionStatusResponse,
+  TestMode,
 } from '@/types/api';
 
 import { fetchWithCache, invalidateCache, invalidateCacheByPrefix, clearCache } from './data-cache';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
+if (!BASE_URL && !__DEV__) {
+  // Release builds get this from eas.json; without it every request would fail.
+  console.error('EXPO_PUBLIC_API_URL is not set — API requests will fail.');
+}
+
+const REQUEST_TIMEOUT_MS = 20_000;
+
+function fallbackMessage(status: number) {
+  if (status >= 500) return 'Something went wrong on our side. Please try again in a moment.';
+  if (status === 404) return 'Not found.';
+  if (status === 401 || status === 403) return 'Your session has expired. Please log in again.';
+  return 'Request failed. Please try again.';
+}
 
 export class ApiError extends Error {
   status: number;
@@ -54,17 +73,38 @@ async function request<T>(
   }
   const start = Date.now();
 
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  let text: string;
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    text = await response.text();
+  } catch (e) {
+    const timedOut = e instanceof Error && e.name === 'AbortError';
+    throw new ApiError(
+      0,
+      timedOut ? 'The server is taking too long to respond. Please try again.' : 'No internet connection. Check your network and try again.'
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  // A proxy or crashed server can answer with an HTML error page instead of JSON.
+  let data: Record<string, any> | null = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    if (response.ok) throw new ApiError(response.status, 'Unexpected response from the server. Please try again.');
+  }
 
   if (__DEV__) {
     const elapsedMs = Date.now() - start;
@@ -72,7 +112,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, data?.error ?? 'Request failed', data);
+    throw new ApiError(response.status, data?.error ?? fallbackMessage(response.status), data);
   }
 
   return data as T;
@@ -124,9 +164,20 @@ export const api = {
 
   updateProfile: (
     token: string,
-    details: { name?: string; email?: string; state?: string; dateOfBirth?: string; password?: string }
+    details: {
+      fullName?: string;
+      name?: string;
+      email?: string;
+      targetExam?: string;
+      preparationLevel?: string;
+      targetAttempt?: string | null;
+      preparationFocus?: string;
+      state?: string;
+      dateOfBirth?: string;
+      password?: string;
+    }
   ) =>
-    request<{ accessToken: string; user: AuthUser }>('/api/auth/profile', {
+    request<{ accessToken: string; user: AuthUser }>('/api/user/profile', {
       method: 'PATCH',
       token,
       body: details,
@@ -134,13 +185,16 @@ export const api = {
 
   // ─── Cached endpoints ───────────────────────────────────────────────
 
-  dashboard: (token: string, onUpdate?: (data: DashboardResponse) => void) =>
-    fetchWithCache<DashboardResponse>(
+  /** `force` skips the cache (pull-to-refresh). */
+  dashboard: (token: string, onUpdate?: (data: DashboardResponse) => void, force = false) => {
+    if (force) invalidateCache(cacheKey.dashboard);
+    return fetchWithCache<DashboardResponse>(
       cacheKey.dashboard,
       () => request<DashboardResponse>('/api/dashboard', { token }),
       CACHE_TTL.dashboard,
       onUpdate,
-    ),
+    );
+  },
 
   streak: (token: string, onUpdate?: (data: StreakResponse) => void) =>
     fetchWithCache<StreakResponse>(
@@ -219,6 +273,38 @@ export const api = {
   getResults: (token: string, attemptId: number) =>
     request<AttemptResultsResponse>(`/api/attempts/${attemptId}/results`, { token }),
 
+  // ─── Previous-year paper tests ──────────────────────────────────────
+
+  paperDetail: (token: string, paperId: number) =>
+    request<PaperDetailResponse>(`/api/papers/${paperId}`, { token }),
+
+  startPaperTest: (
+    token: string,
+    body: { questionPaperId: number; testMode: TestMode; sectionCategoryId?: number | null }
+  ) => {
+    invalidateCache(cacheKey.papers);
+    return request<{ id: number }>('/api/attempts', { method: 'POST', token, body: { mode: 'FULL_PAPER', ...body } });
+  },
+
+  getPaperAttempt: (token: string, attemptId: number) =>
+    request<PaperAttemptDetailResponse>(`/api/attempts/${attemptId}`, { token }),
+
+  savePaperAnswer: (token: string, attemptId: number, questionId: number, selectedOptionId: number | null) =>
+    request<SavePaperAnswerResponse>(`/api/attempts/${attemptId}/answers`, {
+      method: 'POST',
+      token,
+      body: { questionId, selectedOptionId },
+    }),
+
+  submitPaperTest: (token: string, attemptId: number) => {
+    invalidateCache(cacheKey.dashboard, cacheKey.streak, cacheKey.papers);
+    invalidateCacheByPrefix('attempts');
+    return request<CompleteAttemptResponse>(`/api/attempts/${attemptId}/complete`, { method: 'POST', token });
+  },
+
+  paperResults: (token: string, attemptId: number) =>
+    request<PaperResultsResponse>(`/api/attempts/${attemptId}/results`, { token }),
+
   stageDetail: (token: string, stageId: number) =>
     request<StageDetailResponse>(`/api/stages/${stageId}`, { token }),
 
@@ -248,6 +334,14 @@ export const api = {
     request<StageResultsResponse>(`/api/stages/${stageId}/results`, { token }),
 
   continueLearning: (token: string) => request<ContinueLearning>('/api/users/me/continue', { token }),
+
+  /** Checks one answer and returns the correct option, explanation and review points. */
+  checkDailyAnswer: (token: string, questionId: number, selectedOptionId: number | null) =>
+    request<DailyAnswerFeedback>('/api/daily-challenge/answers', {
+      method: 'POST',
+      token,
+      body: { questionId, selectedOptionId },
+    }),
 
   submitDailyChallenge: (token: string, answers: { questionId: number; selectedOptionId: number | null }[]) => {
     invalidateCache(cacheKey.dashboard, cacheKey.dailyChallenge, cacheKey.streak);

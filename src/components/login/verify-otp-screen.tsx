@@ -4,11 +4,11 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useEffect, useState } from 'react';
 import { COLORS } from './colors';
-import { Toast, type ToastData } from '../toast';
+import { Toast } from '../toast';
 import { loginStyles as styles } from './login-styles';
 import { OtpInput } from './otp-input';
+import { useErrorToast } from '@/hooks/use-error-toast';
 
 type Props = {
   phone: string;
@@ -35,15 +35,8 @@ export function VerifyOtpScreen({
   onResend,
   onVerify,
 }: Props) {
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const [toast, setToast] = useErrorToast(error);
 
-  useEffect(() => {
-    if (error) {
-      setToast({ type: 'error', message: error });
-    } else {
-      setToast(null);
-    }
-  }, [error]);
 
   return (
     <View style={styles.container}>
@@ -83,7 +76,7 @@ export function VerifyOtpScreen({
               </View>
 
               <View style={styles.resendRow}>
-                <Text style={styles.resendLabel}>Didn't get it? </Text>
+                <Text style={styles.resendLabel}>Didn&apos;t get it? </Text>
                 <Pressable onPress={onResend} disabled={resendTimer > 0}>
                   <Text style={[styles.resendLink, resendTimer > 0 && styles.resendDisabled]}>
                     {resendTimer > 0 ? `Resend OTP (${formatTimer(resendTimer)})` : 'Resend OTP'}

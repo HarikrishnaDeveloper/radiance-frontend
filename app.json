@@ -1,25 +1,38 @@
 {
   "expo": {
-    "name": "radience-frontend",
-    "slug": "radience-frontend",
+    "name": "Radiance",
+    "slug": "radiance",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./logo_square.png",
-    "scheme": "radiencefrontend",
-    "userInterfaceStyle": "automatic",
+    "scheme": "radiance",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./logo_splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.hari1014129.radiance",
+      "supportsTablet": false,
       "icon": "./logo_square.png",
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["tez", "phonepe", "paytmmp"]
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "tez",
+          "phonepe",
+          "paytmmp"
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#1a0040",
         "foregroundImage": "./logo_square.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hari1014129.radiencefrontend"
+      "package": "com.hari1014129.radiance"
     },
     "web": {
       "output": "static",
@@ -30,9 +43,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
-          "image": "./logo_square.png",
-          "imageWidth": 200
+          "backgroundColor": "#ffffff",
+          "image": "./logo_splash.png",
+          "imageWidth": 280
         }
       ],
       "expo-secure-store",

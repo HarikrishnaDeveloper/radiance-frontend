@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -59,12 +60,10 @@ export function SplashContent() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
         <Image
-          style={styles.bookImage}
-          source={require('../../assets/splashscreen/book.png')}
-          contentFit="cover"
+          style={styles.logoImage}
+          source={require('../../assets/images/logo.png')}
+          contentFit="contain"
         />
-
-        <Text style={styles.title}>RADIANCE</Text>
         <Text style={styles.tagline}>Your UPSC Journey Starts Here</Text>
 
         {/* s */}
@@ -107,7 +106,7 @@ export function SplashContent() {
       <View style={styles.footer}>
         <Text style={styles.footerText}>Made with Love for UPSC Aspirants</Text>
         <View style={styles.versionPill}>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>Version {Constants.expoConfig?.version}</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -117,7 +116,7 @@ export function SplashContent() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ffffff',
     justifyContent: 'space-between',
   },
   contentScroll: {
@@ -128,10 +127,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 12,
   },
-  bookImage: {
-    width: '70%',
-    maxWidth: 250,
-    aspectRatio: 1,
+  logoImage: {
+    width: '80%',
+    height: 70,
+    marginTop: 48,
+    marginBottom: 6,
   },
   title: {
     fontSize: 30,
@@ -158,9 +158,10 @@ const styles = StyleSheet.create({
     color: COLORS.blue,
   },
   tagline: {
-    fontSize: 16,
-    color: COLORS.gray,
-    marginTop: 10,
+    fontSize: 15,
+    color: '#6E7488',
+    marginTop: 6,
+    marginBottom: 20,
   },
   starDividerRow: {
     flexDirection: 'row',
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 14,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 2,
     padding: 18,
     width: '100%',
     marginTop: -20,
@@ -224,10 +225,10 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
   },
   progressLabel: {
-    marginTop: 48,
-    fontSize: 16,
+    marginTop: 36,
+    fontSize: 15,
     fontWeight: '700',
-    color: COLORS.blue,
+    color: '#152B5C',
   },
   progressRow: {
     flexDirection: 'row',
@@ -238,20 +239,20 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     flex: 1,
-    height: 12,
-    borderRadius: 4,
-    backgroundColor: COLORS.blueSoft,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.08)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
-    backgroundColor: COLORS.blue,
+    borderRadius: 2,
+    backgroundColor: '#c026d3',
   },
   progressPercent: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.navy,
+    color: '#152B5C',
     width: 36,
     textAlign: 'right',
   },
@@ -292,9 +293,9 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
   },
   footer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(0,0,0,0.03)',
     borderTopWidth: 1,
-    borderTopColor: COLORS.statDivider,
+    borderTopColor: 'rgba(0,0,0,0.08)',
     paddingVertical: 18,
     paddingBottom: 24,
     alignItems: 'center',
@@ -303,17 +304,17 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.gray,
+    color: '#6E7488',
   },
   versionPill: {
     paddingHorizontal: 14,
     paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: COLORS.blueSoft,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   versionText: {
     fontSize: 11,
     fontWeight: '500',
-    color: COLORS.blue,
+    color: '#9CA3AF',
   },
 });

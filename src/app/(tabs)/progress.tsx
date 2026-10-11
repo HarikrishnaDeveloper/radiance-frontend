@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
 
   accuracyCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 24,
+    borderRadius: 2,
     padding: 22,
     flexDirection: 'row',
     alignItems: 'center',
@@ -148,18 +148,18 @@ const styles = StyleSheet.create({
   statVal: { fontSize: 14, fontWeight: '800', color: COLORS.navy },
   statLabel: { fontSize: 11, color: COLORS.gray, fontWeight: '500' },
 
-  card: { backgroundColor: COLORS.white, borderRadius: 22, padding: 20 },
+  card: { backgroundColor: COLORS.white, borderRadius: 2, padding: 20 },
   subjRow: { marginBottom: 16 },
   subjTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
   subjName: { fontSize: 13.5, fontWeight: '700', color: COLORS.navy },
   subjPct: { fontSize: 13, fontWeight: '800', color: COLORS.navy },
-  track: { height: 8, borderRadius: 100, backgroundColor: COLORS.grayBorder, overflow: 'hidden' },
-  trackFill: { height: '100%', borderRadius: 100, backgroundColor: COLORS.purple },
+  track: { height: 8, borderRadius: 2, backgroundColor: COLORS.grayBorder, overflow: 'hidden' },
+  trackFill: { height: '100%', borderRadius: 2, backgroundColor: COLORS.purple },
   emptyText: { textAlign: 'center', color: COLORS.grayLight },
 
   rankCard: {
     backgroundColor: COLORS.purple700,
-    borderRadius: 22,
+    borderRadius: 2,
     padding: 19,
     flexDirection: 'row',
     alignItems: 'center',
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   rankBadge: {
     width: 52,
     height: 52,
-    borderRadius: 16,
+    borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',

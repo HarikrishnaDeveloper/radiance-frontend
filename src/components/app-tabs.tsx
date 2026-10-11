@@ -38,11 +38,11 @@ export default function AppTabs() {
         }}
       />
       <Tabs.Screen
-        name="journey"
+        name="tests"
         options={{
-          title: 'Journey',
+          title: 'Tests',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={22} color={color} />
           ),
         }}
       />

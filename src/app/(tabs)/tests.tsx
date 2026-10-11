@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { formatMarks } from '@/components/paper-test/theme';
 import { StagePath } from '@/components/stage-path';
 import { Toast, type ToastData } from '@/components/toast';
 import { COLORS } from '@/constants/colors';
@@ -12,7 +14,7 @@ import type { CategoryDetailResponse, CategorySummary, PaperSummary, StageSummar
 
 type Pane = 'path' | 'papers';
 
-export default function JourneyScreen() {
+export default function TestsScreen() {
   const { token } = useAuth();
   const [categories, setCategories] = useState<CategorySummary[]>([]);
   const [papers, setPapers] = useState<PaperSummary[]>([]);
@@ -63,12 +65,6 @@ export default function JourneyScreen() {
     }, [selectedCategoryId, loadCategoryDetail])
   );
 
-  async function startFullPaper(questionPaperId: number) {
-    if (!token) return;
-    const attempt = await api.createAttempt(token, { mode: 'FULL_PAPER', questionPaperId });
-    router.push(`/quiz/${attempt.id}`);
-  }
-
   function handleStagePress(stage: StageSummary, index: number) {
     if (stage.status === 'LOCKED') {
       setToast({ type: 'error', message: `Complete Stage ${index} first` });
@@ -82,8 +78,8 @@ export default function JourneyScreen() {
       <Toast toast={toast} onHide={() => setToast(null)} />
       <View style={styles.header}>
         <SafeAreaView edges={['top']}>
-          <Text style={styles.pageTitle}>Journey</Text>
-          <Text style={styles.pageSub}>Your path through the syllabus</Text>
+          <Text style={styles.pageTitle}>Tests</Text>
+          <Text style={styles.pageSub}>Tests & Practice Papers</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
             {categories.map((category) => {
               const active = category.id === selectedCategoryId;
@@ -135,16 +131,40 @@ export default function JourneyScreen() {
             </View>
           )
         ) : (
-          <View style={styles.papersList}>
-            {papers.map((paper, i) => (
-              <Pressable key={paper.id} onPress={() => startFullPaper(paper.id)}>
-                <View style={[styles.yearItem, i === papers.length - 1 && styles.yearItemLast]}>
-                  <Text style={styles.yearTitle}>{paper.title ?? `${paper.year} Paper`}</Text>
-                  <Text style={styles.yearMeta}>{paper.questionCount} Questions</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
+          <>
+            <View style={styles.papersIntro}>
+              <Text style={styles.progressTitle}>UPSC Prelims · {papers.length} years</Text>
+              <Text style={styles.progressSub}>Full papers & subject sections, with explanations and UPSC review points</Text>
+            </View>
+            <View style={styles.papersList}>
+              {papers.map((paper, i) => (
+                <Pressable key={paper.id} onPress={() => router.push(`/paper/${paper.id}`)}>
+                  <View style={[styles.yearItem, i === papers.length - 1 && styles.yearItemLast]}>
+                    <View style={[styles.yearBadge, paper.locked && styles.yearBadgeLocked]}>
+                      <Text style={[styles.yearBadgeText, paper.locked && styles.yearBadgeTextLocked]}>{paper.year}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.yearTitle}>General Studies Paper I</Text>
+                      <Text style={styles.yearMeta}>
+                        {paper.questionCount} Questions
+                        {paper.bestScore ? ` · Best ${formatMarks(paper.bestScore.score)}/${paper.bestScore.maxScore}` : ''}
+                      </Text>
+                    </View>
+                    {paper.inProgressAttemptId ? (
+                      <Text style={styles.resumeTag}>Resume</Text>
+                    ) : paper.isFree ? (
+                      <Text style={styles.freeTag}>Free</Text>
+                    ) : null}
+                    <Ionicons
+                      name={paper.locked ? 'lock-closed' : 'chevron-forward'}
+                      size={16}
+                      color={paper.locked ? COLORS.grayLight : COLORS.gray}
+                    />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </>
         )}
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -168,7 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     paddingVertical: 9,
     paddingHorizontal: 15,
-    borderRadius: 100,
+    borderRadius: 2,
   },
   chipActive: { backgroundColor: COLORS.white, borderColor: COLORS.white },
   chipText: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
@@ -178,30 +198,65 @@ const styles = StyleSheet.create({
     margin: 18,
     marginBottom: 0,
     backgroundColor: COLORS.white,
-    borderRadius: 14,
+    borderRadius: 2,
     padding: 4,
     flexDirection: 'row',
   },
   segmentBtn: { flex: 1 },
-  segmentInner: { paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
+  segmentInner: { paddingVertical: 10, borderRadius: 2, alignItems: 'center' },
   segmentInnerActive: { backgroundColor: COLORS.purple },
   segmentText: { fontSize: 13, fontWeight: '700', color: COLORS.grayLight },
   segmentTextActive: { color: COLORS.white },
 
   progressSummary: {
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: 2,
     padding: 17,
     marginBottom: 10,
   },
   progressTitle: { fontSize: 14.5, fontWeight: '800', color: COLORS.navy },
   progressSub: { fontSize: 12, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
 
-  papersList: { backgroundColor: COLORS.white, borderRadius: 22, overflow: 'hidden' },
+  papersList: { backgroundColor: COLORS.white, borderRadius: 2, overflow: 'hidden' },
+  papersIntro: { marginBottom: 12, paddingHorizontal: 2 },
   yearItem: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.grayBorder,
+  },
+  yearBadge: {
+    width: 52,
+    height: 44,
+    borderRadius: 2,
+    backgroundColor: COLORS.purpleSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yearBadgeLocked: { backgroundColor: COLORS.grayBorder },
+  yearBadgeText: { fontSize: 14, fontWeight: '800', color: COLORS.purple700 },
+  yearBadgeTextLocked: { color: COLORS.gray },
+  resumeTag: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.goldDeep,
+    backgroundColor: COLORS.goldSoft,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  freeTag: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.green,
+    backgroundColor: COLORS.greenSoft,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 2,
+    overflow: 'hidden',
   },
   yearItemLast: { borderBottomWidth: 0 },
   yearTitle: { fontSize: 14.5, fontWeight: '800', color: COLORS.navy },

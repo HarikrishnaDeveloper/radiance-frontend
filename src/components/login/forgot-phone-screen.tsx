@@ -14,10 +14,10 @@ import {
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useEffect, useState } from 'react';
 import { COLORS } from './colors';
-import { Toast, type ToastData } from '../toast';
+import { Toast } from '../toast';
 import { loginStyles as styles } from './login-styles';
+import { useErrorToast } from '@/hooks/use-error-toast';
 
 type Props = {
   phone: string;
@@ -29,15 +29,8 @@ type Props = {
 };
 
 export function ForgotPhoneScreen({ phone, onPhoneChange, error, submitting = false, onBack, onSendCode }: Props) {
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const [toast, setToast] = useErrorToast(error);
 
-  useEffect(() => {
-    if (error) {
-      setToast({ type: 'error', message: error });
-    } else {
-      setToast(null);
-    }
-  }, [error]);
 
   return (
     <View style={styles.container}>
@@ -130,7 +123,7 @@ const localStyles = StyleSheet.create({
   backBtn: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 2,
     backgroundColor: '#F8F7FF',
     borderWidth: 1.5,
     borderColor: '#E6E4F8',

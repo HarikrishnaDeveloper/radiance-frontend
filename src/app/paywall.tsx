@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: 2,
     padding: 20,
     marginTop: 28,
     gap: 14,
@@ -204,14 +204,14 @@ const styles = StyleSheet.create({
 
   actions: { marginTop: 'auto', paddingBottom: 20, gap: 10 },
   primaryBtn: {
-    borderRadius: 16,
+    borderRadius: 2,
     paddingVertical: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.white },
   secondaryBtn: {
-    borderRadius: 16,
+    borderRadius: 2,
     paddingVertical: 17,
     alignItems: 'center',
     justifyContent: 'center',

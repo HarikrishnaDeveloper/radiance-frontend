@@ -1,10 +1,9 @@
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState } from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe, runOnJS } from 'react-native-reanimated';
 
-const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
 
 export function AnimatedSplashOverlay() {
@@ -32,7 +31,7 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <Image style={styles.image} source={require('../../logo.png')} />;
+  const image = <Image style={styles.splashImage} source={require('../../logo_splash.png')} />;
 
   return animate ? (
     <Animated.View
@@ -51,7 +50,7 @@ export function AnimatedSplashOverlay() {
         SplashScreen.hideAsync().catch(() => {}).finally(() => {
           setTimeout(() => {
             setAnimate(true);
-          }, 5000);
+          }, 1500);
         });
       }}
       style={styles.splashOverlay}>
@@ -83,7 +82,7 @@ export function AnimatedIcon() {
   return (
     <View style={styles.iconContainer}>
       <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-        <Image style={styles.image} source={require('../../logo.png')} />
+        <Image style={styles.image} source={require('../../assets/images/logo-mark.png')} />
       </Animated.View>
     </View>
   );
@@ -102,12 +101,17 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   image: {
-    width: 76,
-    height: 71,
+    width: 96,
+    height: 96,
+  },
+  splashImage: {
+    width: 260,
+    height: 90,
+    resizeMode: 'contain',
   },
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,

@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    borderRadius: 16,
+    borderRadius: 2,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
     paddingVertical: 18,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   buttonWrapper: {
     marginTop: 32,
-    borderRadius: 14,
+    borderRadius: 2,
     shadowColor: '#4F46E5',
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     height: 56,
-    borderRadius: 14,
+    borderRadius: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

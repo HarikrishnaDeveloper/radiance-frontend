@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,8 +18,9 @@ import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { COLORS } from './colors';
-import { Toast, type ToastData } from '../toast';
+import { Toast } from '../toast';
 import { loginStyles as styles } from './login-styles';
+import { useErrorToast } from '@/hooks/use-error-toast';
 
 const INDIAN_STATES = [
   'Andhra Pradesh',
@@ -158,15 +159,8 @@ export function ChooseUsernameScreen({
   }
 
   const displayError = localError || error;
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const [toast, setToast] = useErrorToast(displayError);
 
-  useEffect(() => {
-    if (displayError) {
-      setToast({ type: 'error', message: displayError });
-    } else {
-      setToast(null);
-    }
-  }, [displayError]);
 
   return (
     <View style={styles.loginContainer}>
@@ -446,8 +440,8 @@ const localStyles = StyleSheet.create({
   modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(21, 43, 92, 0.45)' },
   modalSheet: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
     maxHeight: '80%',
     paddingTop: 12,
     paddingBottom: 28,
@@ -497,7 +491,7 @@ const localStyles = StyleSheet.create({
   stateRowSelected: {
     backgroundColor: COLORS.purpleSoft,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 2,
     borderBottomWidth: 0,
     marginVertical: 2,
   },
