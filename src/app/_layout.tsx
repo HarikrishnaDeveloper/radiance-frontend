@@ -5,7 +5,6 @@ import type { PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { SplashContent } from '@/components/splash-content';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -15,7 +14,8 @@ function AuthGate({ children }: PropsWithChildren) {
   const pathname = usePathname();
 
   if (status === 'loading') {
-    return <SplashContent />;
+    // SplashOverlay covers this until the session is restored.
+    return <View style={styles.loadingScreen} />;
   }
 
   if (status === 'signedOut' && pathname !== '/login') {
@@ -50,6 +50,11 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
+function SplashOverlay() {
+  const { status } = useAuth();
+  return <AnimatedSplashOverlay ready={status !== 'loading'} />;
+}
+
 // The UI is designed for light backgrounds only (app.json userInterfaceStyle: "light").
 export default function RootLayout() {
   return (
@@ -59,13 +64,14 @@ export default function RootLayout() {
         <AuthGate>
           <Stack screenOptions={{ headerShown: false }} />
         </AuthGate>
+        <SplashOverlay />
       </AuthProvider>
-      <AnimatedSplashOverlay />
     </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: { flex: 1, backgroundColor: '#FFFFFF' },
   errorScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#FFFFFF' },
   errorTitle: { fontSize: 18, fontWeight: '800', color: '#152B5C', textAlign: 'center' },
   errorText: { fontSize: 14, color: '#6E7488', textAlign: 'center', marginTop: 8, lineHeight: 20 },

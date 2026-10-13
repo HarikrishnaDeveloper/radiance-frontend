@@ -4,7 +4,7 @@
     "slug": "radiance",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./logo_square.png",
+    "icon": "./logo_square_white.png",
     "scheme": "radiance",
     "userInterfaceStyle": "light",
     "splash": {

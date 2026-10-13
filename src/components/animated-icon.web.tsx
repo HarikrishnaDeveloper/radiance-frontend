@@ -4,7 +4,7 @@ import Animated, { Keyframe, Easing } from 'react-native-reanimated';
 
 const DURATION = 300;
 
-export function AnimatedSplashOverlay() {
+export function AnimatedSplashOverlay(_props: { ready: boolean }) {
   return null;
 }
 
