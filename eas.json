@@ -16,6 +16,9 @@
       "environment": "preview",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://radiance-api.vizhaa.in"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
