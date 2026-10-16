@@ -32,7 +32,10 @@
         "foregroundImage": "./logo_square.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hari1014129.radiance"
+      "package": "com.hari1014129.radiance",
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "output": "static",
@@ -69,8 +72,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a43f59f6-d74d-42da-9b4b-4baa9e26579e"
+        "projectId": "1112876e-6e3b-48e1-944a-bbea8f407674"
       }
-    }
+    },
+    "owner": "hari1014129"
   }
 }
