@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { Pressable } from '@/components/ui/pressable';
 
 import { COLORS } from './colors';
 
@@ -19,13 +19,10 @@ export function ProfileSuccessScreen({ onContinue }: Props) {
         bounces={false}
         showsVerticalScrollIndicator={false}>
         <SafeAreaView style={styles.safeArea}>
-          {/* Hero Illustration */}
           <Animated.View entering={FadeIn.duration(450)} style={styles.heroWrap}>
-            <Image
-              source={require('../../../assets/login/sucess.png')}
-              style={styles.heroImage}
-              contentFit="contain"
-            />
+            <View style={styles.heroBadge}>
+              <Ionicons name="checkmark" size={36} color={COLORS.purple} />
+            </View>
           </Animated.View>
 
           <View style={styles.content}>
@@ -62,19 +59,15 @@ export function ProfileSuccessScreen({ onContinue }: Props) {
                   styles.buttonWrapper,
                   pressed && styles.buttonPressed,
                 ]}>
-                <LinearGradient
-                  colors={['#6366F1', '#4F46E5']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.continueButton}>
+                <View style={[styles.continueButton, { backgroundColor: COLORS.purple }]}>
                   <Text style={styles.continueText}>Continue to Dashboard</Text>
                   {/* <Ionicons
                     name="arrow-forward"
                     size={20}
-                    color="#FFFFFF"
+                    color={COLORS.white}
                     style={styles.arrowIcon}
                   /> */}
-                </LinearGradient>
+                </View>
               </Pressable>
             </Animated.View>
           </View>
@@ -87,7 +80,7 @@ export function ProfileSuccessScreen({ onContinue }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.white,
   },
   scrollContent: {
     flexGrow: 1,
@@ -102,24 +95,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  heroImage: {
-    width: 280,
-    height: 280,
+  heroBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: COLORS.purpleSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     paddingHorizontal: 28,
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontWeight: '700',
+    color: COLORS.navy,
     textAlign: 'center',
     letterSpacing: -0.5,
     marginTop: 16,
   },
   subtitle: {
     fontSize: 15,
-    color: '#64748B',
+    color: COLORS.gray,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 22,
@@ -131,22 +128,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 2,
-    backgroundColor: '#FFFFFF',
+    borderColor: COLORS.grayBorder,
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
     paddingHorizontal: 20,
     paddingVertical: 18,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
   badgeCircle: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: COLORS.purpleSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -157,22 +149,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.navy,
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: COLORS.gray,
     lineHeight: 18,
   },
   buttonWrapper: {
     marginTop: 32,
-    borderRadius: 2,
-    shadowColor: '#4F46E5',
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    borderRadius: 8,
   },
   buttonPressed: {
     opacity: 0.9,
@@ -180,7 +167,7 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     height: 56,
-    borderRadius: 2,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -188,7 +175,7 @@ const styles = StyleSheet.create({
   continueText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.white,
   },
   arrowIcon: {
     marginLeft: 8,

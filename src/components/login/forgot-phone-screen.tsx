@@ -1,10 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +15,7 @@ import { COLORS } from './colors';
 import { Toast } from '../toast';
 import { loginStyles as styles } from './login-styles';
 import { useErrorToast } from '@/hooks/use-error-toast';
+import { Pressable } from '@/components/ui/pressable';
 
 type Props = {
   phone: string;
@@ -30,7 +28,6 @@ type Props = {
 
 export function ForgotPhoneScreen({ phone, onPhoneChange, error, submitting = false, onBack, onSendCode }: Props) {
   const [toast, setToast] = useErrorToast(error);
-
 
   return (
     <View style={styles.container}>
@@ -48,16 +45,13 @@ export function ForgotPhoneScreen({ phone, onPhoneChange, error, submitting = fa
               </Pressable>
             </View>
 
-            <Animated.View entering={FadeIn.duration(400)} style={localStyles.illustrationWrap} pointerEvents="none">
-              <Image
-                style={localStyles.illustrationImage}
-                source={require('../../../assets/login/forgetpassword.png')}
-                contentFit="contain"
-                pointerEvents="none"
-              />
+            <Animated.View entering={FadeIn.duration(400)} style={styles.iconWrap}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="key-outline" size={28} color={COLORS.purple} />
+              </View>
             </Animated.View>
 
-            <Animated.View entering={FadeInUp.duration(400)} style={[styles.content, { zIndex: 10, elevation: 10 }]}>
+            <Animated.View entering={FadeInUp.duration(400)} style={[styles.content, { zIndex: 10 }]}>
               <Text style={[styles.title, { textAlign: 'center' }]}>Forgot Password?</Text>
               <Text style={styles.subtitle}>Enter your registered mobile number</Text>
 
@@ -86,14 +80,10 @@ export function ForgotPhoneScreen({ phone, onPhoneChange, error, submitting = fa
                 onPress={onSendCode}
                 disabled={submitting}
                 style={({ pressed }) => [pressed && styles.buttonPressed]}>
-                <LinearGradient
-                  colors={[COLORS.purple, COLORS.purpleDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.purpleButton, { marginTop: 28 }]}>
+                <View style={[styles.purpleButton, { marginTop: 28 }, { backgroundColor: COLORS.purple }]}>
                   <Text style={styles.purpleButtonText}>{submitting ? 'Sending…' : 'Send OTP'}</Text>
                   {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
-                </LinearGradient>
+                </View>
               </Pressable>
 
               <View style={styles.signUpRow}>
@@ -118,30 +108,15 @@ const localStyles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
     zIndex: 10,
-    elevation: 10,
   },
   backBtn: {
     width: 44,
     height: 44,
-    borderRadius: 2,
-    backgroundColor: '#F8F7FF',
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
     borderWidth: 1.5,
-    borderColor: '#E6E4F8',
+    borderColor: COLORS.grayBorder,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  illustrationWrap: {
-    height: 250,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    marginBottom: 16,
-    overflow: 'visible',
-    zIndex: 1,
-  },
-  illustrationImage: {
-    width: '90%',
-    maxWidth: 320,
-    aspectRatio: 1,
   },
 });

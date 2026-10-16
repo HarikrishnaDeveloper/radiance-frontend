@@ -1,35 +1,32 @@
-// Shared color palette for the whole app. Every key that already existed in
-// the login flow (src/components/login/colors.ts) keeps its exact value —
-// this file is the canonical source now, login/colors.ts just re-exports it.
-export const COLORS = {
-  // Existing login-flow colors, unchanged
-  navy: '#152B5C',
-  blue: '#3E6BF0',
-  blueSoft: '#EAF0FE',
-  gold: '#F5A623',
-  goldSoft: '#FFF8EC',
-  greenSoft: '#E8F5E9',
-  orangeSoft: '#FFF3E0',
-  gray: '#6E7488',
-  grayLight: '#A0A5B5',
-  grayBorder: '#E8EAF0',
-  white: '#FFFFFF',
-  error: '#E53935',
-  errorBg: '#FFF0F0',
-  purple: '#7B2FBE',
-  purpleDark: '#5B1A9E',
-  purpleSoft: '#F3ECFB',
-  loginBg: '#FFFFFF',
+import { UI } from './ui';
 
-  // New shades added for the Home/Practice/Journey/Progress redesign —
-  // interpolated around the existing purple/purpleDark anchors, plus a few
-  // solid colors (green/teal) the login palette never needed.
-  purple900: '#241454',
-  purple700: '#4F2FD0',
-  purple500: '#6D52E8',
-  purple400: '#8B70EF',
-  goldDeep: '#B77A0E',
-  green: '#1FAE64',
-  teal: '#0F9E93',
-  tealSoft: '#E4F7F5',
+// Key names used across the login flow and tab screens, mapped onto the single
+// palette in ./ui (white background, black/grey text, icon violet accent).
+export const COLORS = {
+  navy: UI.text,
+  blue: UI.accent,
+  blueSoft: UI.accentSoft,
+  gold: UI.accent,
+  goldSoft: UI.accentSoft,
+  greenSoft: UI.greenSoft,
+  orangeSoft: UI.accentSoft,
+  gray: UI.grey,
+  grayLight: UI.greyLight,
+  grayBorder: UI.border,
+  white: UI.bg,
+  error: UI.red,
+  errorBg: UI.redSoft,
+  purple: UI.accent,
+  purpleDark: UI.accentPressed,
+  purpleSoft: UI.accentSoft,
+  loginBg: UI.bg,
+
+  purple900: UI.text,
+  purple700: UI.accent,
+  purple500: UI.accent,
+  purple400: UI.accent,
+  goldDeep: UI.accent,
+  green: UI.green,
+  teal: UI.grey,
+  tealSoft: UI.subtle,
 } as const;

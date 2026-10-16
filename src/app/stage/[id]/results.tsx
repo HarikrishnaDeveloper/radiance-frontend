@@ -2,13 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
 import type { StageResultsResponse } from '@/types/api';
+import { dialog } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
 
 function ReviewQuestionCard({ question, index }: { question: any; index: number }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -90,11 +92,15 @@ function ReviewQuestionCard({ question, index }: { question: any; index: number 
 export default function StageResultsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
   const [results, setResults] = useState<StageResultsResponse | null>(null);
 
   useEffect(() => {
     if (!token || !id) return;
-    api.stageResults(token, Number(id)).then(setResults);
+    api
+      .stageResults(token, Number(id))
+      .then(setResults)
+      .catch(() => dialog.error('Could not load results', 'Please try again.', [{ text: 'OK', onPress: () => router.back() }]));
   }, [token, id]);
 
   if (!results) {
@@ -119,7 +125,7 @@ export default function StageResultsScreen() {
         </View>
       </SafeAreaView>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryPct}>{results.accuracy}%</Text>
           <Text style={styles.summarySub}>{results.correctAnswers}/{results.completedQuestions} correct</Text>
@@ -152,29 +158,29 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 36,
     height: 36,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: COLORS.navy },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: COLORS.navy },
   headerSub: { fontSize: 12, color: COLORS.gray, fontWeight: '500', marginTop: 1 },
 
   scrollContent: { paddingHorizontal: 20, paddingBottom: 32, gap: 14 },
 
-  summaryCard: { backgroundColor: COLORS.white, borderRadius: 2, padding: 20, alignItems: 'center' },
-  summaryPct: { fontSize: 32, fontWeight: '800', color: COLORS.navy },
+  summaryCard: { backgroundColor: COLORS.white, borderRadius: 8, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: COLORS.grayBorder },
+  summaryPct: { fontSize: 32, fontWeight: '700', color: COLORS.navy },
   summarySub: { fontSize: 13, color: COLORS.gray, fontWeight: '600', marginTop: 4 },
 
-  questionCard: { backgroundColor: COLORS.white, borderRadius: 2, padding: 18 },
+  questionCard: { backgroundColor: COLORS.white, borderRadius: 8, padding: 18, borderWidth: 1, borderColor: COLORS.grayBorder },
   questionIndex: { fontSize: 11.5, fontWeight: '700', color: COLORS.grayLight },
   questionText: { fontSize: 15.5, fontWeight: '700', color: COLORS.navy, marginTop: 6, lineHeight: 22 },
-  questionImage: { width: '100%', height: 160, borderRadius: 2, marginTop: 10 },
+  questionImage: { width: '100%', height: 160, borderRadius: 8, marginTop: 10 },
 
   options: { marginTop: 14, gap: 10 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1.5, borderRadius: 2, padding: 12 },
-  optionLetter: { width: 24, height: 24, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
-  optionLetterText: { fontSize: 11.5, fontWeight: '800' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1.5, borderRadius: 8, padding: 12 },
+  optionLetter: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  optionLetterText: { fontSize: 11.5, fontWeight: '700' },
   optionText: { flex: 1, fontSize: 13.5, fontWeight: '600', color: COLORS.navy },
 
   skippedNote: { fontSize: 12, fontStyle: 'italic', color: COLORS.grayLight, marginTop: 10 },
@@ -187,9 +193,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 16,
     backgroundColor: COLORS.loginBg,
-    borderRadius: 2,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E6E1F4',
+    borderColor: COLORS.grayBorder,
   },
   expandBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.purple700 },
 
@@ -199,14 +205,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.grayBorder,
   },
-  explanationTitle: { fontSize: 12.5, fontWeight: '800', color: COLORS.purple700, marginBottom: 4 },
+  explanationTitle: { fontSize: 12.5, fontWeight: '700', color: COLORS.purple700, marginBottom: 4 },
   explanationText: { fontSize: 13, color: COLORS.gray, lineHeight: 18, fontWeight: '500' },
 
-  revisionBox: { marginTop: 12, padding: 12, backgroundColor: COLORS.goldSoft, borderRadius: 2 },
+  revisionBox: { marginTop: 12, padding: 12, backgroundColor: COLORS.goldSoft, borderRadius: 8 },
   revisionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
-  revisionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.purple700 },
+  revisionTitle: { fontSize: 12, fontWeight: '700', color: COLORS.purple700 },
   revisionText: { fontSize: 12.5, color: COLORS.gray, fontWeight: '500', lineHeight: 18 },
 
-  doneBtn: { backgroundColor: COLORS.purple700, borderRadius: 2, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
-  doneBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
+  doneBtn: { backgroundColor: COLORS.purple700, borderRadius: 8, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
+  doneBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
 });

@@ -1,39 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UI } from '@/constants/ui';
 
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
 import type { StreakDayStatus, StreakResponse } from '@/types/api';
+import { Pressable } from '@/components/ui/pressable';
 
 // ─── Design tokens aligned with streak_page.html ─────────────────────────
 const ST = {
-  purple900: '#2A1065',
-  purple800: '#3A1794',
-  purple700: '#4C1FB8',
-  purple600: '#5E2CE0',
-  purple500: '#6D3AF0',
-  purple400: '#8B5CF6',
-  purple100: '#EEE9FE',
-  purple50: '#F6F3FF',
-  bg: '#F7F6FB',
-  card: '#FFFFFF',
-  ink900: '#1B1830',
-  ink600: '#635F7A',
-  ink400: '#9C98B4',
-  ink300: '#C6C3DA',
-  line: '#ECE9F7',
-  gold: '#F5A623',
-  goldSoft: '#FFF3DC',
-  goldDeep: '#B77A0E',
-  green: '#1FAE64',
-  greenSoft: '#E6F8EF',
-  blue: '#3B7DDB',
-  blueSoft: '#EAF2FC',
-  red: '#E14848',
+  purple900: UI.accent,
+  purple800: UI.accent,
+  purple700: UI.accent,
+  purple600: UI.accent,
+  purple500: UI.accent,
+  purple400: UI.accent,
+  purple100: UI.accentSoft,
+  purple50: UI.accentSoft,
+  bg: UI.bg,
+  card: UI.bg,
+  ink900: UI.text,
+  ink600: UI.grey,
+  ink400: UI.greyLight,
+  ink300: UI.border,
+  line: UI.border,
+  gold: UI.accent,
+  goldSoft: UI.accentSoft,
+  goldDeep: UI.accent,
+  green: UI.green,
+  greenSoft: UI.greenSoft,
+  blue: UI.accent,
+  blueSoft: UI.accentSoft,
+  red: UI.red,
 } as const;
 
 const MONTH_NAMES = [
@@ -45,14 +46,9 @@ const CALENDAR_DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 function WeekDot({ status }: { status: StreakDayStatus }) {
   if (status === 'done') {
     return (
-      <LinearGradient
-        colors={['#FFD37A', ST.gold]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.weekDot}
-      >
-        <Ionicons name="checkmark" size={15} color="#8A5A00" />
-      </LinearGradient>
+      <View style={[styles.weekDot, { backgroundColor: ST.purple600 }]}>
+        <Ionicons name="checkmark" size={15} color={ST.card} />
+      </View>
     );
   }
   if (status === 'today') {
@@ -65,7 +61,7 @@ function WeekDot({ status }: { status: StreakDayStatus }) {
   if (status === 'missed') {
     return (
       <View style={[styles.weekDot, styles.weekDotMissed]}>
-        <Ionicons name="close" size={14} color={ST.red} />
+        <Ionicons name="close" size={14} color={ST.ink400} />
       </View>
     );
   }
@@ -74,6 +70,7 @@ function WeekDot({ status }: { status: StreakDayStatus }) {
 
 export default function StreakScreen() {
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState<StreakResponse | null>(null);
 
   const load = useCallback(async () => {
@@ -101,34 +98,32 @@ export default function StreakScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ── Header + Flame Hero + Week Strip ── */}
-        <LinearGradient
-          colors={[ST.purple800, '#1A0F3E']}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 0.8, y: 1 }}
-          style={styles.header}
-        >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}>
+        {/* ── Header + streak count + week strip ── */}
+        <View style={styles.header}>
           <SafeAreaView edges={['top']}>
             {/* Header Top Nav */}
             <View style={styles.headerTop}>
               <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-                <Ionicons name="chevron-back" size={20} color="#fff" />
+                <Ionicons name="chevron-back" size={22} color={ST.ink900} />
               </Pressable>
               <Text style={styles.pageTitle}>Streak</Text>
               <View style={{ width: 38 }} />
             </View>
 
-            {/* Flame Hero */}
+            {/* Streak count */}
             <View style={styles.flameHero}>
               <View style={styles.flameIconWrap}>
-                <Ionicons name="flame" size={52} color={ST.gold} />
+                <Ionicons name="flame" size={36} color={ST.purple600} />
               </View>
               <Text style={styles.streakCount}>{data.streak}</Text>
-              <Text style={styles.streakCaption}>Day Streak</Text>
+              <Text style={styles.streakCaption}>day streak</Text>
               <Text style={styles.streakMotivation}>
                 {data.streak > 0
-                  ? "You're on fire. Answer one question today to keep it alive."
+                  ? "Answer at least one question today to keep it going."
                   : 'Start your streak today by completing a question.'}
               </Text>
             </View>
@@ -145,7 +140,7 @@ export default function StreakScreen() {
               ))}
             </View>
           </SafeAreaView>
-        </LinearGradient>
+        </View>
 
         {/* ── Body Content ── */}
         <View style={styles.bodyContent}>
@@ -154,22 +149,17 @@ export default function StreakScreen() {
             <View style={styles.milestoneCard}>
               <View style={styles.milestoneTop}>
                 <View style={styles.milestoneIcon}>
-                  <Ionicons name="star" size={22} color={ST.goldDeep} />
+                  <Ionicons name="star-outline" size={20} color={ST.purple600} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.milestoneTitle}>Next Milestone: {data.nextMilestone} Days</Text>
+                  <Text style={styles.milestoneTitle}>Next milestone: {data.nextMilestone} days</Text>
                   <Text style={styles.milestoneSub}>
-                    {daysToMilestone} more day{daysToMilestone === 1 ? '' : 's'} to unlock a new badge
+                    {daysToMilestone} more day{daysToMilestone === 1 ? '' : 's'} to go
                   </Text>
                 </View>
               </View>
               <View style={styles.milestoneTrack}>
-                <LinearGradient
-                  colors={[ST.gold, ST.goldDeep]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.milestoneFill, { width: `${milestoneProgress}%` }]}
-                />
+                <View style={[styles.milestoneFill, { width: `${milestoneProgress}%` }, { backgroundColor: ST.gold }]} />
               </View>
               <View style={styles.milestoneDaysRow}>
                 <Text style={styles.milestoneDaysText}>{data.streak}</Text>
@@ -180,14 +170,9 @@ export default function StreakScreen() {
 
           {/* Streak Freeze Card */}
           <View style={styles.section}>
-            <LinearGradient
-              colors={[ST.blueSoft, '#F7F6FB']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.freezeCard}
-            >
+            <View style={styles.freezeCard}>
               <View style={styles.freezeIcon}>
-                <Ionicons name="snow" size={22} color={ST.blue} />
+                <Ionicons name="snow-outline" size={20} color={ST.purple600} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.freezeTitle}>
@@ -195,15 +180,12 @@ export default function StreakScreen() {
                 </Text>
                 <Text style={styles.freezeSub}>Protects your streak if you miss a day</Text>
               </View>
-              <Pressable onPress={() => Alert.alert('Streak Freezes', 'You can acquire more streak freezes by completing daily milestones.')}>
-                <Text style={styles.freezeCta}>Get More</Text>
-              </Pressable>
-            </LinearGradient>
+            </View>
           </View>
 
           {/* Streak Stats */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Streak Stats</Text>
+            <Text style={styles.sectionTitle}>Stats</Text>
             <View style={styles.statGrid}>
               {/* Card 1 */}
               <View style={styles.statCard}>
@@ -216,8 +198,8 @@ export default function StreakScreen() {
               
               {/* Card 2 */}
               <View style={styles.statCard}>
-                <View style={[styles.statIcon, { backgroundColor: ST.greenSoft }]}>
-                  <Ionicons name="book" size={17} color={ST.green} />
+                <View style={[styles.statIcon, { backgroundColor: ST.purple50 }]}>
+                  <Ionicons name="book" size={17} color={ST.purple600} />
                 </View>
                 <Text style={styles.statVal}>{data.totalActiveDays} Days</Text>
                 <Text style={styles.statLabel}>Total Active Days</Text>
@@ -245,7 +227,7 @@ export default function StreakScreen() {
 
           {/* Streak Calendar */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Streak Calendar</Text>
+            <Text style={styles.sectionTitle}>Calendar</Text>
             <View style={styles.calCard}>
               <View style={styles.calHead}>
                 <Text style={styles.calMonth}>
@@ -259,20 +241,21 @@ export default function StreakScreen() {
                 {data.calendar.days.map((d, i) => {
                   const isVisible = d !== null;
                   return (
-                    <View
-                      key={i}
-                      style={[
-                        styles.calDay,
-                        d?.hasActivity && styles.calDayFlame,
-                        d?.isToday && styles.calDayToday,
-                        !isVisible && { opacity: 0 },
-                      ]}
-                    >
-                      {d && (
-                        <Text style={[styles.calDayText, d.hasActivity && styles.calDayTextFlame]}>
-                          {d.day}
-                        </Text>
-                      )}
+                    <View key={i} style={styles.calCell}>
+                      <View
+                        style={[
+                          styles.calDay,
+                          d?.hasActivity && styles.calDayFlame,
+                          d?.isToday && styles.calDayToday,
+                          !isVisible && { opacity: 0 },
+                        ]}
+                      >
+                        {d && (
+                          <Text style={[styles.calDayText, d.hasActivity && styles.calDayTextFlame]}>
+                            {d.day}
+                          </Text>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
@@ -283,14 +266,9 @@ export default function StreakScreen() {
           {/* CTA fixed action */}
           <View style={[styles.section, { marginTop: 10 }]}>
             <Pressable onPress={() => router.push('/(tabs)/practice')} style={styles.ctaBtnWrap}>
-              <LinearGradient
-                colors={[ST.purple600, ST.purple800]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.ctaFixed}
-              >
-                <Text style={styles.ctaText}>Practice Now to Extend Streak</Text>
-              </LinearGradient>
+              <View style={[styles.ctaFixed, { backgroundColor: ST.purple600 }]}>
+                <Text style={styles.ctaText}>Practice now</Text>
+              </View>
             </Pressable>
           </View>
         </View>
@@ -317,10 +295,13 @@ const styles = StyleSheet.create({
     backgroundColor: ST.bg,
   },
   header: {
+    backgroundColor: ST.card,
     paddingHorizontal: 22,
-    paddingBottom: 34,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: ST.line,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -333,15 +314,15 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 38,
     height: 38,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 8,
+    marginLeft: -8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pageTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
+    color: ST.ink900,
     letterSpacing: -0.1,
   },
   flameHero: {
@@ -349,30 +330,30 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   flameIconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(245,166,35,0.16)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: ST.purple50,
     alignItems: 'center',
     justifyContent: 'center',
   },
   streakCount: {
     fontSize: 52,
-    fontWeight: '800',
-    color: '#FFD37A', // Styled text representation
+    fontWeight: '700',
+    color: ST.ink900,
     marginTop: 6,
     letterSpacing: -1.5,
   },
   streakCaption: {
     fontSize: 14,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.85)',
+    color: ST.ink600,
     marginTop: -4,
   },
   streakMotivation: {
     fontSize: 12.5,
-    color: 'rgba(255,255,255,0.55)',
-    fontWeight: '500',
+    color: ST.ink600,
+    fontWeight: '400',
     marginTop: 8,
     paddingHorizontal: 20,
     textAlign: 'center',
@@ -395,28 +376,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   weekDotToday: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: ST.card,
     borderWidth: 2,
-    borderColor: ST.gold,
+    borderColor: ST.purple600,
   },
   weekDotMissed: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: ST.card,
     borderWidth: 1.5,
-    borderColor: ST.red,
+    borderColor: ST.ink300,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDotFuture: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: ST.card,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: ST.ink300,
     borderStyle: 'dashed',
   },
   weekLabel: {
     fontSize: 10.5,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.55)',
+    fontWeight: '500',
+    color: ST.ink600,
   },
   weekLabelToday: {
     color: ST.gold,
@@ -430,26 +411,17 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: ST.ink900,
     marginBottom: 14,
     letterSpacing: -0.2,
   },
   milestoneCard: {
     backgroundColor: ST.card,
-    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: ST.line,
+    borderRadius: 8,
     padding: 19,
-    ...Platform.select({
-      ios: {
-        shadowColor: ST.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
   },
   milestoneTop: {
     flexDirection: 'row',
@@ -459,14 +431,14 @@ const styles = StyleSheet.create({
   milestoneIcon: {
     width: 44,
     height: 44,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: ST.goldSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   milestoneTitle: {
     fontSize: 14.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: ST.ink900,
   },
   milestoneSub: {
@@ -477,14 +449,14 @@ const styles = StyleSheet.create({
   },
   milestoneTrack: {
     height: 8,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: ST.line,
     marginTop: 16,
     overflow: 'hidden',
   },
   milestoneFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 8,
   },
   milestoneDaysRow: {
     flexDirection: 'row',
@@ -500,44 +472,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 16,
+    backgroundColor: ST.card,
     borderWidth: 1,
-    borderColor: '#DCEAFB',
-    ...Platform.select({
-      ios: {
-        shadowColor: ST.blue,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    borderColor: ST.line,
   },
   freezeIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 2,
-    backgroundColor: ST.card,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: ST.purple50,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: ST.blue,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   freezeTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: ST.ink900,
   },
   freezeSub: {
@@ -549,7 +500,7 @@ const styles = StyleSheet.create({
   },
   freezeCta: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: ST.blue,
   },
   statGrid: {
@@ -558,34 +509,27 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
   },
+  // Basis under 50% leaves room for the 12px gap so it stays 2 per row.
   statCard: {
-    width: '48%',
+    flexBasis: '40%',
+    flexGrow: 1,
     backgroundColor: ST.card,
-    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: ST.line,
+    borderRadius: 8,
     padding: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: ST.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   statIcon: {
     width: 34,
     height: 34,
-    borderRadius: 2,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   statVal: {
     fontSize: 19,
-    fontWeight: '800',
+    fontWeight: '700',
     color: ST.ink900,
     letterSpacing: -0.3,
   },
@@ -597,19 +541,10 @@ const styles = StyleSheet.create({
   },
   calCard: {
     backgroundColor: ST.card,
-    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: ST.line,
+    borderRadius: 8,
     padding: 18,
-    ...Platform.select({
-      ios: {
-        shadowColor: ST.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
   },
   calHead: {
     flexDirection: 'row',
@@ -619,25 +554,31 @@ const styles = StyleSheet.create({
   },
   calMonth: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: ST.ink900,
   },
+  // Exactly 7 columns on any width: each cell is 1/7 of the row and spacing
+  // comes from cell margins, not `gap` (12.5% + gaps overflowed to 6 per row).
   calGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 7,
   },
   calDow: {
-    width: '12.5%',
+    width: '14.2857%', // 1/7
     fontSize: 10,
     fontWeight: '700',
     color: ST.ink300,
     textAlign: 'center',
+    marginBottom: 6,
+  },
+  calCell: {
+    width: '14.2857%', // 1/7
+    padding: 3,
   },
   calDay: {
-    width: '12.5%',
+    width: '100%',
     aspectRatio: 1,
-    borderRadius: 2,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: ST.bg,
@@ -656,22 +597,11 @@ const styles = StyleSheet.create({
   },
   calDayTextFlame: {
     color: ST.goldDeep,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   ctaBtnWrap: {
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: ST.purple700,
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
   },
   ctaFixed: {
     paddingVertical: 16,
@@ -680,7 +610,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontSize: 14.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#fff',
   },
 });

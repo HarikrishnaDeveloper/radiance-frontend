@@ -1,43 +1,49 @@
+import type { Ionicons } from '@expo/vector-icons';
 import type { Href } from 'expo-router';
 
-// What the Home screen renders, derived from GET /api/dashboard and the
-// signed-in user's profile by useHomeDashboard.
+import type { LeaderboardResponse, StudyTaskStatus } from './api';
+
+// What the Home screen renders, derived from GET /api/dashboard by
+// useHomeDashboard. Every number here is computed by the backend; this layer
+// only formats it.
 
 export type PlanItem = {
   id: string;
   title: string;
-  isCompleted: boolean;
+  icon: keyof typeof Ionicons.glyphMap;
+  progress: number;
+  target: number;
+  status: StudyTaskStatus;
   route: Href;
 };
 
 export type ContinueItem = {
   title: string;
   type: string;
+  /** e.g. "4 of 10 questions" */
+  progressLabel: string;
   progress: number; // 0-100
+  started: boolean;
   route: Href;
 };
 
-export type WeakAreaLevel = 'red' | 'orange' | 'green';
-
-export type WeakAreaItem = {
+export type CategoryItem = {
   categoryId: number;
-  topicName: string;
+  name: string;
   accuracy: number; // 0-100
   answered: number;
-  level: WeakAreaLevel;
 };
 
 export type HomeData = {
   greeting: string;
   studentName: string;
   targetLabel: string | null;
+  notificationCount: number;
   streak: number;
-  overallProgress: number; // 0-100, share of stages completed
-  questionsSolved: number;
-  accuracy: number; // 0-100
-  paperTestsCompleted: number;
-  todaysPlan: PlanItem[];
+  dailyGoal: { completed: number; total: number };
   continueLearning: ContinueItem | null;
-  weakAreas: WeakAreaItem[];
-  dailyMotivation: string;
+  stats: { questionsSolved: number; accuracy: number; syllabusCoverage: number; paperTests: number };
+  todaysPlan: PlanItem[];
+  performance: { strong: CategoryItem[]; weak: CategoryItem[]; hasRatedCategories: boolean; minAnswers: number };
+  leaderboard: LeaderboardResponse;
 };

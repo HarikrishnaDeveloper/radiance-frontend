@@ -1,21 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Pressable } from '@/components/ui/pressable';
 
 import { HT } from './home-theme';
 import { SectionHeader } from './SectionHeader';
 
 const ACTIONS: { title: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap; tint: string; soft: string; route: Href }[] = [
-  { title: 'PYQ Practice', subtitle: 'Subject-wise questions', icon: 'book', tint: HT.primary, soft: HT.primarySoft, route: '/practice' },
-  { title: 'Daily Challenge', subtitle: '10 questions every day', icon: 'flash', tint: HT.goldDeep, soft: HT.goldSoft, route: '/daily-challenge' },
-  { title: 'PYQ Papers', subtitle: 'Full tests & sections', icon: 'document-text', tint: HT.green, soft: HT.greenSoft, route: '/tests' },
-  { title: 'My Progress', subtitle: 'Accuracy & streaks', icon: 'stats-chart', tint: HT.red, soft: HT.redSoft, route: '/progress' },
+  { title: 'Category Practice', subtitle: 'Subject-wise PYQs & explanations', icon: 'book', tint: HT.primary, soft: HT.primarySoft, route: '/practice' },
+  { title: 'Full Paper Tests', subtitle: 'Timed exam simulations', icon: 'document-text', tint: HT.primary, soft: HT.primarySoft, route: '/tests' },
+  { title: 'Leaderboard', subtitle: 'See where you rank', icon: 'trophy', tint: HT.primary, soft: HT.primarySoft, route: '/leaderboard' },
+  { title: 'Daily Tasks', subtitle: 'Set & review study goals', icon: 'checkbox', tint: HT.primary, soft: HT.primarySoft, route: '/daily-tasks' },
 ];
 
 export function QuickActions() {
   return (
     <View style={styles.section}>
-      <SectionHeader eyebrow="Explore" title="Quick actions" />
+      <SectionHeader title="Shortcuts" />
       <View style={styles.grid}>
         {ACTIONS.map((action) => (
           <Pressable
@@ -40,8 +42,10 @@ export function QuickActions() {
 const styles = StyleSheet.create({
   section: { marginBottom: 28 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  // flexBasis below 50% leaves room for the gap, so two tiles fit per row on
+  // every phone width (a 48.5% width + 10px gap overflowed on 320–360px phones).
   tile: {
-    width: '48.5%',
+    flexBasis: '40%',
     flexGrow: 1,
     backgroundColor: HT.surface,
     borderRadius: HT.radius,
@@ -49,9 +53,9 @@ const styles = StyleSheet.create({
     borderColor: HT.hairline,
     padding: 14,
   },
-  tilePressed: { borderColor: HT.primary, backgroundColor: '#FBFAFF' },
+  tilePressed: { borderColor: HT.primary, backgroundColor: HT.primarySoft },
   icon: { width: 36, height: 36, borderRadius: HT.radius, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  title: { fontSize: 14, fontWeight: '800', color: HT.ink },
-  subtitle: { fontSize: 11.5, fontWeight: '500', color: HT.muted, marginTop: 3 },
+  title: { fontSize: 14.5, fontWeight: '600', color: HT.ink, paddingRight: 14 },
+  subtitle: { fontSize: 12.5, color: HT.muted, marginTop: 3, lineHeight: 17 },
   arrow: { position: 'absolute', top: 14, right: 14 },
 });

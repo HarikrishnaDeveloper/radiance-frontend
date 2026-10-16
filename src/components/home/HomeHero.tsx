@@ -1,61 +1,92 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Pressable } from '@/components/ui/pressable';
+
+import { GlassStreak } from './GlassStreak';
 import { HT } from './home-theme';
 
 interface Props {
   greeting: string;
   studentName: string;
-  targetLabel: string | null;
+  notificationCount: number;
   streak: number;
-  overallProgress: number;
-  onPressProfile: () => void;
+  dailyGoal: { completed: number; total: number };
+  onPressNotifications: () => void;
   onPressStreak: () => void;
+  onPressDailyGoal: () => void;
 }
 
-// Dark gradient header: greeting, exam target, streak and syllabus coverage.
-export function HomeHero({ greeting, studentName, targetLabel, streak, overallProgress, onPressProfile, onPressStreak }: Props) {
-  const initial = studentName.charAt(0).toUpperCase();
+// Accent at a given opacity, so the panel stays inside the app palette.
+const accent = (alpha: number) => `${HT.primary}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`;
+
+// Page header: greeting and name with notifications on the right,
+// then the streak and today's goal (tasks done against the study plan).
+// It sits on its own soft violet panel so it reads as one section, apart
+// from the white page that scrolls below it.
+export function HomeHero({
+  greeting,
+  studentName,
+  notificationCount,
+  streak,
+  dailyGoal,
+  onPressNotifications,
+  onPressStreak,
+  onPressDailyGoal,
+}: Props) {
+  const goalMet = dailyGoal.total > 0 && dailyGoal.completed >= dailyGoal.total;
 
   return (
-    <LinearGradient colors={[HT.heroTop, HT.heroBottom]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-      <SafeAreaView edges={['top']}>
+    <LinearGradient colors={[HT.primarySoft, accent(0.05)]} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1 }} style={styles.panel}>
+      {/* A faint accent glow in the corner for depth. */}
+
+
+      <SafeAreaView edges={['top']} style={styles.hero}>
         <View style={styles.topRow}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, marginRight: 10 }}>
             <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.name} numberOfLines={1}>
-              {studentName || 'Aspirant'}
-            </Text>
-            {targetLabel && (
-              <View style={styles.targetRow}>
-                <Ionicons name="flag" size={11} color={HT.gold} />
-                <Text style={styles.target}>Preparing for {targetLabel}</Text>
+            {studentName ? (
+              <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                {studentName}
+              </Text>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={onPressNotifications}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={notificationCount > 0 ? `Notifications, ${notificationCount} new` : 'Notifications'}>
+            <Ionicons name="notifications-outline" size={22} color={HT.ink} />
+            {notificationCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{notificationCount > 9 ? '9+' : notificationCount}</Text>
               </View>
             )}
-          </View>
-          <Pressable onPress={onPressProfile} style={styles.avatar} accessibilityRole="button" accessibilityLabel="Profile">
-            {initial ? <Text style={styles.avatarText}>{initial}</Text> : <Ionicons name="person" size={18} color={HT.gold} />}
           </Pressable>
         </View>
 
         <View style={styles.metaRow}>
-          <Pressable onPress={onPressStreak} style={styles.streak} accessibilityRole="button" accessibilityLabel={`${streak} day streak`}>
-            <Ionicons name="flame" size={15} color={HT.goldBright} />
-            <Text style={styles.streakValue}>{streak}</Text>
-            <Text style={styles.streakLabel}>day streak</Text>
-          </Pressable>
+          <GlassStreak streak={streak} onPress={onPressStreak} />
 
-          <View style={styles.coverage}>
-            <View style={styles.coverageHead}>
-              <Text style={styles.coverageLabel}>Syllabus covered</Text>
-              <Text style={styles.coverageValue}>{overallProgress}%</Text>
+          <Pressable
+            onPress={onPressDailyGoal}
+            style={styles.goal}
+            accessibilityRole="button"
+            accessibilityLabel={`Daily goal: ${dailyGoal.completed} of ${dailyGoal.total} tasks completed`}>
+            <View style={styles.goalHead}>
+              <Text style={styles.goalLabel}>{goalMet ? 'Daily goal met' : "Today's goal"}</Text>
+              <Text style={styles.goalValue}>
+                {dailyGoal.completed}/{dailyGoal.total} <Text style={styles.goalUnit}>tasks</Text>
+              </Text>
             </View>
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${Math.max(overallProgress, 2)}%` }]} />
+            <View style={styles.segments}>
+              {Array.from({ length: Math.max(dailyGoal.total, 1) }, (_, i) => (
+                <View key={i} style={[styles.segment, i < dailyGoal.completed && styles.segmentDone]} />
+              ))}
             </View>
-          </View>
+          </Pressable>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -63,49 +94,67 @@ export function HomeHero({ greeting, studentName, targetLabel, streak, overallPr
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingHorizontal: 20, paddingBottom: 56 },
-  topRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14 },
-  greeting: { fontSize: 11, fontWeight: '800', color: HT.gold, letterSpacing: 1.6, textTransform: 'uppercase' },
-  name: { fontSize: 28, fontWeight: '800', color: HT.onHero, marginTop: 4, letterSpacing: -0.6 },
-  targetRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  target: { fontSize: 13, fontWeight: '600', color: HT.onHeroMuted },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+  panel: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    borderBottomWidth: 1,
+    borderColor: accent(0.1),
+    overflow: 'hidden',
+  },
+  glow: {
+    position: 'absolute',
+    top: -90,
+    right: -70,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: accent(0.07),
+  },
+  hero: { paddingHorizontal: 20, paddingBottom: 18 },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  greeting: { fontSize: 14, color: HT.muted },
+  name: { fontSize: 26, fontWeight: '700', color: HT.ink, marginTop: 2, letterSpacing: -0.4 },
+  // White disc so the bell stands out on the tinted panel.
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: HT.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: `0px 2px 8px ${accent(0.12)}`,
+  },
+  badge: {
+    position: 'absolute',
+    top: 6,
+    right: 5,
+    minWidth: 17,
+    height: 17,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: HT.primary,
     borderWidth: 1.5,
-    borderColor: HT.gold,
-    backgroundColor: 'rgba(212,169,60,0.12)',
+    borderColor: HT.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 18, fontWeight: '800', color: HT.goldBright },
+  badgeText: { fontSize: 9.5, fontWeight: '700', color: HT.surface },
 
-  metaRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12, marginTop: 22 },
-  streak: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: HT.heroLine,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: HT.radius,
-  },
-  streakValue: { fontSize: 17, fontWeight: '800', color: HT.onHero },
-  streakLabel: { fontSize: 11.5, fontWeight: '600', color: HT.onHeroMuted },
-  coverage: {
+  metaRow: { flexDirection: 'row', alignItems: 'stretch', gap: 10, marginTop: 18 },
+  goal: {
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 12,
+    backgroundColor: HT.bg,
     borderWidth: 1,
-    borderColor: HT.heroLine,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: accent(0.15),
     borderRadius: HT.radius,
   },
-  coverageHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  coverageLabel: { fontSize: 11, fontWeight: '700', color: HT.onHeroMuted, letterSpacing: 0.3 },
-  coverageValue: { fontSize: 13, fontWeight: '800', color: HT.goldBright },
-  track: { height: 4, backgroundColor: HT.heroLine, borderRadius: HT.radius, marginTop: 8, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: HT.gold, borderRadius: HT.radius },
+  goalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  goalLabel: { fontSize: 12, color: HT.muted },
+  goalValue: { fontSize: 13, fontWeight: '700', color: HT.ink, fontVariant: ['tabular-nums'] },
+  goalUnit: { fontSize: 12, fontWeight: '400', color: HT.muted },
+  segments: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  segment: { flex: 1, height: 4, backgroundColor: HT.hairline, borderRadius: 2 },
+  segmentDone: { backgroundColor: HT.primary },
 });

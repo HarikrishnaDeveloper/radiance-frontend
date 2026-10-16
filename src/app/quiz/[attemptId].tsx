@@ -1,40 +1,43 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UI } from '@/constants/ui';
 
 import { StudyNotes } from '@/components/paper-test/study-notes';
 import { ProgressRing } from '@/components/progress-ring';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
 import type { AttemptAnswerState, QuestionDifficulty, SafeQuestion } from '@/types/api';
+import { dialog } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
+import { playSound } from '@/lib/sounds';
 
 // ─── Design tokens aligned with quiz_page.html ─────────────────────────
 const QZ = {
-  bg: '#F7F6FB',
-  card: '#FFFFFF',
-  ink900: '#1B1830',
-  ink600: '#635F7A',
-  ink400: '#9C98B4',
-  ink300: '#C6C3DA',
-  line: '#ECE9F7',
-  purple600: '#5E2CE0',
-  purple500: '#6D3AF0',
-  purple400: '#8B5CF6',
-  purple100: '#EEE9FE',
-  purple50: '#F6F3FF',
-  gold: '#F5A623',
-  goldSoft: '#FFF3DC',
-  goldDeep: '#B77A0E',
-  green: '#1FAE64',
-  greenSoft: '#E6F8EF',
-  greenDeep: '#158A50',
-  red: '#E14848',
-  redSoft: '#FDECEC',
-  redDeep: '#B93030',
+  bg: UI.bg,
+  card: UI.bg,
+  ink900: UI.text,
+  ink600: UI.grey,
+  ink400: UI.greyLight,
+  ink300: UI.border,
+  line: UI.border,
+  purple600: UI.accent,
+  purple500: UI.accent,
+  purple400: UI.accent,
+  purple100: UI.accentSoft,
+  purple50: UI.accentSoft,
+  gold: UI.accent,
+  goldSoft: UI.accentSoft,
+  goldDeep: UI.accent,
+  green: UI.green,
+  greenSoft: UI.greenSoft,
+  greenDeep: UI.green,
+  red: UI.red,
+  redSoft: UI.redSoft,
+  redDeep: UI.red,
 } as const;
 
 type Feedback = {
@@ -124,6 +127,7 @@ const OptionButton = React.memo(function OptionButton({ option, isSelected, isCo
 export default function QuizScreen() {
   const { attemptId } = useLocalSearchParams<{ attemptId: string }>();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [questions, setQuestions] = useState<SafeQuestion[] | null>(null);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -189,6 +193,7 @@ export default function QuizScreen() {
     setSubmitting(true);
     try {
       const result = await api.submitAnswer(token, Number(attemptId), currentQuestion.id, selectedOptionId);
+      playSound(result.isCorrect ? 'correct' : 'wrong');
       setFeedback(result);
       setAnswered((prev) =>
         new Map(prev).set(currentQuestion.id, {
@@ -233,16 +238,17 @@ export default function QuizScreen() {
     setSubmitting(true);
     try {
       await api.completeAttempt(token, Number(attemptId));
-      router.replace(`/results/${attemptId}`);
+      // done: the results screen celebrates a fresh finish, not a revisit.
+      router.replace({ pathname: '/results/[attemptId]', params: { attemptId, done: '1' } });
     } finally {
       setSubmitting(false);
     }
   }
 
   function confirmExit() {
-    Alert.alert('Exit Quiz?', 'Your progress so far is saved — you can resume this attempt later.', [
+    dialog.alert('Exit quiz?', 'Your progress so far is saved — you can resume this attempt later.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Exit', style: 'destructive', onPress: () => router.back() },
+      { text: 'Exit', onPress: () => router.back() },
     ]);
   }
 
@@ -262,7 +268,7 @@ export default function QuizScreen() {
     return (
       <View style={styles.centerFill}>
         <Text style={styles.doneTitle}>All questions answered</Text>
-        <Pressable onPress={finish} disabled={submitting} style={[styles.primaryButton, { opacity: submitting ? 0.6 : 1 }]}>
+        <Pressable onPress={finish} sound="submit" disabled={submitting} style={[styles.primaryButton, { opacity: submitting ? 0.6 : 1 }]}>
           <Text style={styles.primaryButtonText}>Finish</Text>
         </Pressable>
       </View>
@@ -280,12 +286,7 @@ export default function QuizScreen() {
             <Ionicons name="close" size={15} color={QZ.ink600} />
           </Pressable>
           <View style={styles.progressTrack}>
-            <LinearGradient
-              colors={[QZ.purple400, QZ.purple600]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.progressFill, { width: `${progressPct}%` }]}
-            />
+            <View style={[styles.progressFill, { width: `${progressPct}%` }, { backgroundColor: QZ.purple400 }]} />
           </View>
           <View style={styles.accuracyWrap}>
             <Stars filled={sessionStarCount(sessionPct)} />
@@ -304,7 +305,9 @@ export default function QuizScreen() {
         {/* ── Meta row: subject · year · question count ── */}
         <View style={styles.metaRow}>
           <View style={styles.metaLeft}>
-            <Text style={styles.subjectTag}>{currentQuestion.category.name}</Text>
+            <Text style={styles.subjectTag} numberOfLines={1}>
+              {currentQuestion.category.name}
+            </Text>
             {currentQuestion.questionPaper && (
               <Text style={styles.yearTag}>UPSC {currentQuestion.questionPaper.year}</Text>
             )}
@@ -356,7 +359,7 @@ export default function QuizScreen() {
 
       {/* ── Bottom: Check Answer / Skip ── */}
       {!feedback && (
-        <View style={styles.bottomArea}>
+        <View style={[styles.bottomArea, { paddingBottom: 18 + insets.bottom }]}>
           {!submitting && (
             <Pressable onPress={skip} style={styles.skipLink}>
               <Text style={styles.skipLinkText}>Skip this question</Text>
@@ -373,16 +376,21 @@ export default function QuizScreen() {
 
       {/* ── Feedback panel ── */}
       {feedback && (
-        <View style={[styles.feedbackPanel, feedback.isCorrect ? styles.feedbackPanelCorrect : styles.feedbackPanelWrong]}>
+        <View
+          style={[
+            styles.feedbackPanel,
+            feedback.isCorrect ? styles.feedbackPanelCorrect : styles.feedbackPanelWrong,
+            { paddingBottom: 20 + insets.bottom },
+          ]}>
           <View style={styles.feedbackTop}>
             <View style={[styles.feedbackIcon, { backgroundColor: feedback.isCorrect ? QZ.green : QZ.red }]}>
               <Ionicons name={feedback.isCorrect ? 'checkmark' : 'close'} size={17} color={QZ.card} />
             </View>
             <Text style={[styles.feedbackTitle, { color: feedback.isCorrect ? QZ.greenDeep : QZ.redDeep }]}>
-              {feedback.skipped ? 'Skipped — here is the answer' : feedback.isCorrect ? 'Correct!' : 'Not Quite'}
+              {feedback.skipped ? 'Skipped — here is the answer' : feedback.isCorrect ? 'Correct' : 'Not quite'}
             </Text>
           </View>
-          <Pressable onPress={isLastQuestion ? finish : goNext} disabled={submitting} style={styles.continueBtn}>
+          <Pressable onPress={isLastQuestion ? finish : goNext} sound={isLastQuestion ? 'submit' : undefined} disabled={submitting} style={styles.continueBtn}>
             <Text style={styles.continueBtnText}>{isLastQuestion ? 'Finish' : 'Continue'}</Text>
           </Pressable>
         </View>
@@ -396,7 +404,7 @@ export default function QuizScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: QZ.bg },
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: QZ.bg, gap: 14, paddingHorizontal: 24 },
-  doneTitle: { fontSize: 17, fontWeight: '800', color: QZ.ink900 },
+  doneTitle: { fontSize: 17, fontWeight: '700', color: QZ.ink900 },
 
   safeArea: { paddingHorizontal: 20, paddingTop: 6 },
 
@@ -405,40 +413,31 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 34,
     height: 34,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: QZ.card,
     alignItems: 'center',
     justifyContent: 'center',
-    // Shadow matching .close-btn box-shadow from the HTML
-    ...Platform.select({
-      ios: {
-        shadowColor: '#1B1830',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: QZ.line,
   },
-  progressTrack: { flex: 1, height: 9, borderRadius: 2, backgroundColor: QZ.line, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
+  progressTrack: { flex: 1, height: 9, borderRadius: 8, backgroundColor: QZ.line, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 8 },
   accuracyWrap: { alignItems: 'center', gap: 2 },
-  accuracyPct: { fontSize: 9, fontWeight: '800', color: QZ.ink400, letterSpacing: 0.2 },
-  timerText: { fontSize: 10, fontWeight: '800', color: QZ.ink900 },
+  accuracyPct: { fontSize: 9, fontWeight: '700', color: QZ.ink400 },
+  timerText: { fontSize: 10, fontWeight: '700', color: QZ.ink900 },
 
   // ── Meta row ──
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  metaLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  metaLeft: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 8 },
   subjectTag: {
+    flexShrink: 1,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: QZ.purple600,
     backgroundColor: QZ.purple50,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   yearTag: {
@@ -448,16 +447,16 @@ const styles = StyleSheet.create({
     backgroundColor: QZ.goldSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
-  qCount: { fontSize: 11.5, fontWeight: '700', color: QZ.ink400 },
+  qCount: { flexShrink: 0, fontSize: 11.5, fontWeight: '700', color: QZ.ink400 },
 
   // ── Question body ──
   body: { flex: 1 },
   bodyContent: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 8 },
-  questionText: { fontSize: 19, fontWeight: '800', color: QZ.ink900, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
-  questionImage: { width: '100%', height: 200, borderRadius: 2, marginTop: 12 },
+  questionText: { fontSize: 19, fontWeight: '700', color: QZ.ink900, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
+  questionImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 12 },
 
   // ── Options ──
   options: { marginTop: 24, gap: 12 },
@@ -466,12 +465,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 13,
     borderWidth: 2,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 14,
   },
   optionDimmed: { opacity: 0.55 },
-  optionLetter: { width: 30, height: 30, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
-  optionLetterText: { fontSize: 13, fontWeight: '800' },
+  optionLetter: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  optionLetterText: { fontSize: 13, fontWeight: '700' },
   optionText: { flex: 1, fontSize: 14.5, fontWeight: '600', color: QZ.ink900 },
 
   // ── Bottom area ──
@@ -480,26 +479,14 @@ const styles = StyleSheet.create({
   skipLinkText: { fontSize: 12.5, fontWeight: '600', color: QZ.ink400 },
   checkBtn: {
     backgroundColor: QZ.ink300,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
   },
   checkBtnEnabled: {
     backgroundColor: QZ.purple600,
-    // Purple glow shadow from the HTML: box-shadow:0 12px 26px -12px rgba(94,44,224,0.55)
-    ...Platform.select({
-      ios: {
-        shadowColor: '#5E2CE0',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.55,
-        shadowRadius: 26,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
-  checkBtnText: { fontSize: 15, fontWeight: '800', color: QZ.card },
+  checkBtnText: { fontSize: 15, fontWeight: '700', color: QZ.card },
 
   // ── Feedback panel ──
   feedbackPanel: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 20, borderTopWidth: 1, borderTopColor: QZ.line },
@@ -507,16 +494,16 @@ const styles = StyleSheet.create({
   feedbackPanelWrong: { backgroundColor: QZ.redSoft },
   feedbackTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   feedbackIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  feedbackTitle: { fontSize: 15, fontWeight: '800' },
+  feedbackTitle: { fontSize: 15, fontWeight: '700' },
   feedbackXp: {
     marginLeft: 'auto',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: QZ.goldDeep,
     backgroundColor: QZ.goldSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   feedbackExplain: { fontSize: 12.5, color: QZ.ink600, fontWeight: '500', lineHeight: 19, marginTop: 6 },
@@ -530,17 +517,15 @@ const styles = StyleSheet.create({
   },
   explanationLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: QZ.purple600,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
     marginBottom: 4,
   },
   revisionBox: {
     marginTop: 10,
     padding: 12,
     backgroundColor: QZ.goldSoft,
-    borderRadius: 2,
+    borderRadius: 8,
   },
   revisionTitleRow: {
     flexDirection: 'row',
@@ -550,10 +535,8 @@ const styles = StyleSheet.create({
   },
   revisionTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: QZ.goldDeep,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
   },
   revisionText: {
     fontSize: 12.5,
@@ -565,40 +548,18 @@ const styles = StyleSheet.create({
   continueBtn: {
     marginTop: 14,
     backgroundColor: QZ.purple600,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     // Same purple glow as check button
-    ...Platform.select({
-      ios: {
-        shadowColor: '#5E2CE0',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.55,
-        shadowRadius: 26,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
-  continueBtnText: { fontSize: 15, fontWeight: '800', color: QZ.card },
+  continueBtnText: { fontSize: 15, fontWeight: '700', color: QZ.card },
 
   primaryButton: {
     backgroundColor: QZ.purple600,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 28,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#5E2CE0',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.55,
-        shadowRadius: 26,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
-  primaryButtonText: { fontSize: 15, fontWeight: '800', color: QZ.card },
+  primaryButtonText: { fontSize: 15, fontWeight: '700', color: QZ.card },
 });

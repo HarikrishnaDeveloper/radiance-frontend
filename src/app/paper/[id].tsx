@@ -1,20 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatMarks, formatMinutes, PT } from '@/components/paper-test/theme';
 import { useAuth } from '@/context/auth-context';
 import { ApiError, api } from '@/lib/api-client';
 import type { PaperAttemptSummary, PaperDetailResponse, TestMode } from '@/types/api';
+import { dialog } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
+import { playSound } from '@/lib/sounds';
 
 const MODE_COPY: Record<TestMode, { title: string; icon: keyof typeof Ionicons.glyphMap; points: string[] }> = {
   EXAM: {
     title: 'Exam mode',
     icon: 'timer-outline',
-    points: ['Timed like the real paper', '+2 correct · −0.67 wrong', 'Answers & explanations after you submit'],
+    points: ['Timed like the real paper', 'Answers & explanations after you submit'],
   },
   PRACTICE: {
     title: 'Practice mode',
@@ -26,6 +28,7 @@ const MODE_COPY: Record<TestMode, { title: string; icon: keyof typeof Ionicons.g
 export default function PaperScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
   const [paper, setPaper] = useState<PaperDetailResponse | null>(null);
   const [mode, setMode] = useState<TestMode>('EXAM');
   const [starting, setStarting] = useState<string | null>(null);
@@ -46,10 +49,11 @@ export default function PaperScreen() {
     setStarting(sectionCategoryId === null ? 'full' : String(sectionCategoryId));
     try {
       const attempt = await api.startPaperTest(token, { questionPaperId: paper.id, testMode: mode, sectionCategoryId });
+      playSound('open');
       router.push(`/test/${attempt.id}`);
     } catch (e) {
       if (e instanceof ApiError && e.isSubscriptionRequired) router.push('/paywall');
-      else Alert.alert('Could not start test', 'Please check your connection and try again.');
+      else dialog.error('Could not start test', 'Please check your connection and try again.');
     } finally {
       setStarting(null);
     }
@@ -57,8 +61,10 @@ export default function PaperScreen() {
 
   // An unfinished attempt is offered as "Resume" instead of starting another.
   function startOrResume(inProgressAttemptId: number | null, sectionCategoryId: number | null) {
-    if (inProgressAttemptId) router.push(`/test/${inProgressAttemptId}`);
-    else start(sectionCategoryId);
+    if (inProgressAttemptId) {
+      playSound('open');
+      router.push(`/test/${inProgressAttemptId}`);
+    } else start(sectionCategoryId);
   }
 
   if (!paper) {
@@ -73,11 +79,11 @@ export default function PaperScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={[PT.purple700, PT.purple900]} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.hero}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 + insets.bottom }} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
           <SafeAreaView edges={['top']}>
             <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-              <Ionicons name="chevron-back" size={18} color={PT.card} />
+              <Ionicons name="chevron-back" size={22} color={PT.ink900} />
             </Pressable>
             <Text style={styles.eyebrow}>UPSC CSE Prelims · {paper.examType.name.replace('Prelims ', '')}</Text>
             <Text style={styles.heroTitle}>{paper.year} Question Paper</Text>
@@ -93,7 +99,7 @@ export default function PaperScreen() {
               </View>
             )}
           </SafeAreaView>
-        </LinearGradient>
+        </View>
 
         <View style={styles.body}>
           {paper.locked && (
@@ -125,7 +131,10 @@ export default function PaperScreen() {
                       style={{ marginLeft: 'auto' }}
                     />
                   </View>
-                  {copy.points.map((p) => (
+                  {(m === 'EXAM'
+                    ? [copy.points[0], `+${formatMarks(paper.marking.correct)} correct · −${formatMarks(Math.abs(paper.marking.wrong))} wrong`, ...copy.points.slice(1)]
+                    : copy.points
+                  ).map((p) => (
                     <Text key={p} style={styles.modePoint}>
                       • {p}
                     </Text>
@@ -140,7 +149,7 @@ export default function PaperScreen() {
             onPress={() => startOrResume(paper.inProgressAttemptId, null)}
             disabled={starting !== null}
             style={({ pressed }) => [styles.fullTest, pressed && { opacity: 0.9 }]}>
-            <LinearGradient colors={[PT.purple500, PT.purple600]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fullTestInner}>
+            <View style={[styles.fullTestInner, { backgroundColor: PT.purple500 }]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fullTestTitle}>Full Paper Test</Text>
                 <Text style={styles.fullTestSub}>
@@ -158,7 +167,7 @@ export default function PaperScreen() {
                   <Ionicons name={paper.locked ? 'lock-closed' : 'arrow-forward'} size={14} color={PT.purple600} />
                 </View>
               )}
-            </LinearGradient>
+            </View>
           </Pressable>
 
           {/* ── Subject sections ── */}
@@ -211,7 +220,7 @@ export default function PaperScreen() {
 function HeroStat({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
   return (
     <View style={styles.heroStat}>
-      <Ionicons name={icon} size={13} color="rgba(255,255,255,0.8)" />
+      <Ionicons name={icon} size={14} color={PT.ink600} />
       <Text style={styles.heroStatText}>{label}</Text>
     </View>
   );
@@ -246,30 +255,31 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: PT.bg },
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PT.bg },
 
-  hero: { paddingHorizontal: 20, paddingBottom: 26, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
+  hero: { paddingHorizontal: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: PT.line },
   backBtn: {
     width: 34,
     height: 34,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 8,
+    marginLeft: -8,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
     marginBottom: 16,
   },
-  eyebrow: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.7)', letterSpacing: 0.3 },
-  heroTitle: { fontSize: 26, fontWeight: '800', color: PT.card, marginTop: 4, letterSpacing: -0.4 },
+  eyebrow: { fontSize: 13, color: PT.ink600 },
+  heroTitle: { fontSize: 26, fontWeight: '700', color: PT.ink900, marginTop: 4, letterSpacing: -0.4 },
   heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   heroStat: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: PT.line,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
   },
-  heroStatText: { fontSize: 12, fontWeight: '700', color: PT.card },
+  heroStatText: { fontSize: 13, color: PT.ink600 },
   freeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -278,18 +288,16 @@ const styles = StyleSheet.create({
     backgroundColor: PT.goldSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
     marginTop: 12,
   },
-  freeBadgeText: { fontSize: 11.5, fontWeight: '800', color: PT.goldDeep },
+  freeBadgeText: { fontSize: 11.5, fontWeight: '700', color: PT.goldDeep },
 
   body: { paddingHorizontal: 18, paddingTop: 18 },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PT.ink400,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginTop: 22,
     marginBottom: 10,
   },
@@ -301,29 +309,29 @@ const styles = StyleSheet.create({
     backgroundColor: PT.purple50,
     borderWidth: 1,
     borderColor: PT.purple100,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 14,
   },
-  lockTitle: { fontSize: 14, fontWeight: '800', color: PT.ink900 },
+  lockTitle: { fontSize: 14, fontWeight: '700', color: PT.ink900 },
   lockSub: { fontSize: 12, color: PT.ink600, marginTop: 2, fontWeight: '500' },
 
   modeRow: { flexDirection: 'row', gap: 10 },
   modeCard: {
     flex: 1,
     backgroundColor: PT.card,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 12,
     borderWidth: 2,
     borderColor: PT.line,
   },
   modeCardActive: { borderColor: PT.purple500, backgroundColor: PT.purple50 },
   modeHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  modeTitle: { fontSize: 13.5, fontWeight: '800', color: PT.ink900 },
+  modeTitle: { fontSize: 13.5, fontWeight: '700', color: PT.ink900 },
   modePoint: { fontSize: 11.5, lineHeight: 16, color: PT.ink600, fontWeight: '500' },
 
-  fullTest: { marginTop: 16, borderRadius: 2, overflow: 'hidden' },
+  fullTest: { marginTop: 16, borderRadius: 8, overflow: 'hidden' },
   fullTestInner: { flexDirection: 'row', alignItems: 'center', padding: 18, gap: 12 },
-  fullTestTitle: { fontSize: 17, fontWeight: '800', color: PT.card },
+  fullTestTitle: { fontSize: 17, fontWeight: '700', color: PT.card },
   fullTestSub: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.8)', marginTop: 3 },
   fullTestCta: {
     flexDirection: 'row',
@@ -332,39 +340,41 @@ const styles = StyleSheet.create({
     backgroundColor: PT.card,
     paddingVertical: 9,
     paddingHorizontal: 14,
-    borderRadius: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: PT.line,
   },
-  fullTestCtaText: { fontSize: 13, fontWeight: '800', color: PT.purple600 },
+  fullTestCtaText: { fontSize: 13, fontWeight: '700', color: PT.purple600 },
 
-  listCard: { backgroundColor: PT.card, borderRadius: 2, overflow: 'hidden' },
+  listCard: { backgroundColor: PT.card, borderWidth: 1, borderColor: PT.line, borderRadius: 8, overflow: 'hidden' },
   rowBorder: { borderTopWidth: 1, borderTopColor: PT.line },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 14 },
   sectionCount: {
     width: 44,
     height: 44,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: PT.purple50,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionCountText: { fontSize: 15, fontWeight: '800', color: PT.purple600, lineHeight: 17 },
+  sectionCountText: { fontSize: 15, fontWeight: '700', color: PT.purple600, lineHeight: 17 },
   sectionCountUnit: { fontSize: 9, fontWeight: '700', color: PT.purple400 },
-  sectionName: { fontSize: 14.5, fontWeight: '800', color: PT.ink900 },
+  sectionName: { fontSize: 14.5, fontWeight: '700', color: PT.ink900 },
   sectionMeta: { fontSize: 12, fontWeight: '500', color: PT.ink400, marginTop: 2 },
   resumePill: {
     fontSize: 11.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PT.goldDeep,
     backgroundColor: PT.goldSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
 
   attemptRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 14 },
-  attemptTitle: { fontSize: 13.5, fontWeight: '800', color: PT.ink900 },
+  attemptTitle: { fontSize: 13.5, fontWeight: '700', color: PT.ink900 },
   attemptMeta: { fontSize: 11.5, fontWeight: '500', color: PT.ink400, marginTop: 2 },
-  attemptScore: { fontSize: 16, fontWeight: '800', color: PT.purple600 },
+  attemptScore: { fontSize: 16, fontWeight: '700', color: PT.purple600 },
   attemptMax: { fontSize: 11, fontWeight: '700', color: PT.ink400 },
 });

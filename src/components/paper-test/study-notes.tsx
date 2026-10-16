@@ -67,12 +67,12 @@ function toLines(text: string | null | undefined) {
 
 const styles = StyleSheet.create({
   wrap: { gap: 10 },
-  card: { backgroundColor: PT.card, borderRadius: 2, padding: 14, borderWidth: 1, borderColor: PT.line },
-  reviewCard: { backgroundColor: PT.goldSoft, borderColor: '#F7E3B8' },
+  card: { backgroundColor: PT.card, borderRadius: 8, padding: 14, borderWidth: 1, borderColor: PT.line },
+  reviewCard: { backgroundColor: PT.goldSoft, borderColor: PT.line },
   emptyCard: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   emptyText: { flex: 1, fontSize: 12.5, color: PT.ink400, fontWeight: '600' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  title: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  title: { fontSize: 11, fontWeight: '700' },
   paragraph: { fontSize: 13.5, lineHeight: 20, color: PT.ink600, fontWeight: '500', marginBottom: 4 },
   bulletRow: { flexDirection: 'row', gap: 9, marginBottom: 5, paddingRight: 4 },
   bullet: { width: 5, height: 5, borderRadius: 3, backgroundColor: PT.goldDeep, marginTop: 8 },

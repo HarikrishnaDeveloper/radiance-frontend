@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StudyNotes } from '@/components/paper-test/study-notes';
@@ -11,6 +10,10 @@ import { formatDuration, PT, questionLabel } from '@/components/paper-test/theme
 import { useAuth } from '@/context/auth-context';
 import { ApiError, api } from '@/lib/api-client';
 import type { PaperAnswerState, PaperAttemptDetailResponse, SafeOption } from '@/types/api';
+import { Button } from '@/components/ui/button';
+import { dialog, DialogFrame, DialogMessage, DialogTitle, dialogStyles } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
+import { playSound } from '@/lib/sounds';
 
 type OptionState = 'idle' | 'selected' | 'correct' | 'wrong' | 'dimmed';
 type PaletteState = 'current' | 'answered' | 'marked' | 'markedAnswered' | 'correct' | 'wrong' | 'skipped' | 'unseen';
@@ -65,13 +68,15 @@ export default function TestPlayerScreen() {
     setSubmitting(true);
     setConfirmOpen(false);
     setPaletteOpen(false);
+    playSound('submit');
     try {
       await api.submitPaperTest(token, id);
-      router.replace(`/test/${id}/results`);
+      // done: the results screen celebrates a fresh finish, not a revisit.
+      router.replace({ pathname: '/test/[attemptId]/results', params: { attemptId: String(id), done: '1' } });
     } catch {
       submitted.current = false;
       setSubmitting(false);
-      Alert.alert('Could not submit', 'Your answers are saved. Please check your connection and try again.');
+      dialog.error('Could not submit', 'Your answers are saved. Please check your connection and try again.');
     }
   }, [token, id]);
 
@@ -132,6 +137,7 @@ export default function TestPlayerScreen() {
     try {
       const res = await api.savePaperAnswer(token, id, questionId, option.id);
       if (res.saved) return;
+      playSound(res.isCorrect ? 'correct' : 'wrong');
       setAnswers((prev) =>
         new Map(prev).set(questionId, {
           questionId,
@@ -171,7 +177,7 @@ export default function TestPlayerScreen() {
       submit();
       return;
     }
-    Alert.alert('Answer not saved', 'Please check your connection and tap the option again.');
+    dialog.error('Answer not saved', 'Please check your connection and tap the option again.');
   }
 
   function toggleMark() {
@@ -185,7 +191,7 @@ export default function TestPlayerScreen() {
   }
 
   function confirmExit() {
-    Alert.alert(
+    dialog.alert(
       'Leave the test?',
       isExam
         ? 'Your answers are saved, but the exam timer keeps running while you are away.'
@@ -256,12 +262,7 @@ export default function TestPlayerScreen() {
         </View>
 
         <View style={styles.progressTrack}>
-          <LinearGradient
-            colors={[PT.purple400, PT.purple600]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.progressFill, { width: `${(answeredCount / Math.max(1, questions.length)) * 100}%` }]}
-          />
+          <View style={[styles.progressFill, { width: `${(answeredCount / Math.max(1, questions.length)) * 100}%` }, { backgroundColor: PT.purple400 }]} />
         </View>
 
         <View style={styles.metaRow}>
@@ -434,7 +435,7 @@ function ResultBanner({ answer }: { answer: PaperAnswerState }) {
     <View style={[styles.banner, { backgroundColor: good ? PT.greenSoft : PT.redSoft }]}>
       <Ionicons name={good ? 'checkmark-circle' : 'close-circle'} size={18} color={good ? PT.greenDeep : PT.redDeep} />
       <Text style={[styles.bannerText, { color: good ? PT.greenDeep : PT.redDeep }]}>
-        {good ? 'Correct  ·  +2 marks' : 'Incorrect  ·  −0.67 marks'}
+        {good ? 'Correct' : 'Incorrect'}
       </Text>
     </View>
   );
@@ -468,6 +469,9 @@ function PaletteSheet({
   onClose: () => void;
   onSubmit: () => void;
 }) {
+  // Leave room for the legend and submit button on short phones.
+  const { height } = useWindowDimensions();
+  const gridMaxHeight = Math.min(360, height * 0.45);
   const legend: [PaletteState, string][] = isExam
     ? [
         ['answered', 'Answered'],
@@ -502,7 +506,7 @@ function PaletteSheet({
             </View>
           ))}
         </View>
-        <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={styles.grid}>
+        <ScrollView style={{ maxHeight: gridMaxHeight }} contentContainerStyle={styles.grid}>
           {questions.map((q, i) => {
             const look = PALETTE_LOOK[stateOf(q.id, i)];
             return (
@@ -545,30 +549,21 @@ function SubmitSheet({
   onSubmit: () => void;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.dialogBackdrop}>
-        <View style={styles.dialog}>
-          <View style={styles.dialogIcon}>
-            <Ionicons name="paper-plane" size={22} color={PT.purple600} />
-          </View>
-          <Text style={styles.dialogTitle}>Submit this test?</Text>
-          <Text style={styles.dialogSub}>
-            {remainingSeconds !== null ? `${formatDuration(remainingSeconds)} left. ` : ''}You can&apos;t change answers after submitting.
-          </Text>
-          <View style={styles.dialogStats}>
-            <DialogStat value={answered} label="Answered" color={PT.purple600} />
-            <DialogStat value={total - answered} label="Unanswered" color={PT.ink600} />
-            {marked > 0 && <DialogStat value={marked} label="Marked" color={PT.goldDeep} />}
-          </View>
-          <Pressable onPress={onSubmit} disabled={submitting} style={styles.sheetPrimary}>
-            <Text style={styles.sheetPrimaryText}>Submit test</Text>
-          </Pressable>
-          <Pressable onPress={onCancel} style={styles.dialogSecondary}>
-            <Text style={styles.dialogSecondaryText}>Keep going</Text>
-          </Pressable>
-        </View>
+    <DialogFrame visible={visible} onRequestClose={onCancel}>
+      <DialogTitle>Submit this test?</DialogTitle>
+      <DialogMessage>
+        {remainingSeconds !== null ? `${formatDuration(remainingSeconds)} left. ` : ''}You can&apos;t change answers after submitting.
+      </DialogMessage>
+      <View style={styles.dialogStats}>
+        <DialogStat value={answered} label="Answered" color={PT.ink900} />
+        <DialogStat value={total - answered} label="Unanswered" color={PT.ink900} />
+        {marked > 0 && <DialogStat value={marked} label="Marked" color={PT.ink900} />}
       </View>
-    </Modal>
+      <View style={dialogStyles.actions}>
+        <Button label="Keep going" variant="secondary" onPress={onCancel} style={dialogStyles.action} />
+        <Button label="Submit" onPress={onSubmit} loading={submitting} style={dialogStyles.action} />
+      </View>
+    </DialogFrame>
   );
 }
 
@@ -581,10 +576,8 @@ function DialogStat({ value, label, color }: { value: number; label: string; col
   );
 }
 
-const shadow = Platform.select({
-  ios: { shadowColor: '#1B1830', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
-  android: { elevation: 3 },
-});
+// Light controls sit on white, so a hairline border stands in for depth.
+const shadow = { borderWidth: 1, borderColor: PT.line } as const;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: PT.bg },
@@ -592,8 +585,8 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 10, backgroundColor: PT.bg },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBtn: { width: 34, height: 34, borderRadius: 2, backgroundColor: PT.card, alignItems: 'center', justifyContent: 'center', ...shadow },
-  title: { fontSize: 14, fontWeight: '800', color: PT.ink900 },
+  iconBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: PT.card, alignItems: 'center', justifyContent: 'center', ...shadow },
+  title: { fontSize: 14, fontWeight: '700', color: PT.ink900 },
   modeTag: { fontSize: 11, fontWeight: '700', color: PT.ink400, marginTop: 1 },
   timerPill: {
     flexDirection: 'row',
@@ -602,37 +595,39 @@ const styles = StyleSheet.create({
     backgroundColor: PT.card,
     paddingVertical: 7,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
     ...shadow,
+    borderWidth: 1,
+    borderColor: PT.line,
   },
   timerPillLow: { backgroundColor: PT.redSoft },
-  timerText: { fontSize: 13, fontWeight: '800', color: PT.ink900, fontVariant: ['tabular-nums'] },
-  submitBtn: { backgroundColor: PT.purple600, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 2 },
-  submitBtnText: { fontSize: 12.5, fontWeight: '800', color: PT.card },
+  timerText: { fontSize: 13, fontWeight: '700', color: PT.ink900, fontVariant: ['tabular-nums'] },
+  submitBtn: { backgroundColor: PT.purple600, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  submitBtnText: { fontSize: 12.5, fontWeight: '700', color: PT.card },
 
-  progressTrack: { height: 6, borderRadius: 2, backgroundColor: PT.line, overflow: 'hidden', marginTop: 12 },
-  progressFill: { height: '100%', borderRadius: 2 },
+  progressTrack: { height: 6, borderRadius: 8, backgroundColor: PT.line, overflow: 'hidden', marginTop: 12 },
+  progressFill: { height: '100%', borderRadius: 8 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   qBadge: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PT.card,
     backgroundColor: PT.ink900,
     paddingVertical: 4,
     paddingHorizontal: 9,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   subjectTag: {
     flexShrink: 1,
     fontSize: 11.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PT.purple600,
     backgroundColor: PT.purple50,
     paddingVertical: 4,
     paddingHorizontal: 9,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   paletteBtn: {
@@ -643,24 +638,24 @@ const styles = StyleSheet.create({
     backgroundColor: PT.purple50,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
   },
-  paletteBtnText: { fontSize: 12, fontWeight: '800', color: PT.purple600 },
+  paletteBtnText: { fontSize: 12, fontWeight: '700', color: PT.purple600 },
 
   bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 24 },
   markedNote: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
-  markedNoteText: { fontSize: 11.5, fontWeight: '800', color: PT.goldDeep },
+  markedNoteText: { fontSize: 11.5, fontWeight: '700', color: PT.goldDeep },
   questionText: { fontSize: 16.5, fontWeight: '700', color: PT.ink900, lineHeight: 25 },
-  questionImage: { width: '100%', height: 200, borderRadius: 2, marginTop: 12 },
+  questionImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 12 },
 
   options: { marginTop: 20, gap: 10 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderRadius: 2, padding: 13 },
-  optionLetter: { width: 30, height: 30, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
-  optionLetterText: { fontSize: 13, fontWeight: '800' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderRadius: 8, padding: 13 },
+  optionLetter: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  optionLetterText: { fontSize: 13, fontWeight: '700' },
   optionText: { flex: 1, fontSize: 14, fontWeight: '600', color: PT.ink900, lineHeight: 20 },
 
-  banner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 2 },
-  bannerText: { flex: 1, fontSize: 13.5, fontWeight: '800' },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 8 },
+  bannerText: { flex: 1, fontSize: 13.5, fontWeight: '700' },
 
   footer: { backgroundColor: PT.card, borderTopWidth: 1, borderTopColor: PT.line, paddingHorizontal: 16, paddingTop: 10 },
   examTools: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
@@ -674,50 +669,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     paddingVertical: 14,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: PT.bg,
   },
   navBtnPrimary: { backgroundColor: PT.purple600 },
-  navBtnText: { fontSize: 14.5, fontWeight: '800', color: PT.ink900 },
+  navBtnText: { fontSize: 14.5, fontWeight: '700', color: PT.ink900 },
 
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(27,24,48,0.4)' },
-  sheet: { backgroundColor: PT.card, borderTopLeftRadius: 2, borderTopRightRadius: 2, paddingHorizontal: 18, paddingTop: 8 },
-  sheetHandle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, backgroundColor: PT.line, marginBottom: 10 },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: { backgroundColor: PT.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 18, paddingTop: 8 },
+  sheetHandle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 8, backgroundColor: PT.line, marginBottom: 10 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetTitle: { fontSize: 16, fontWeight: '800', color: PT.ink900 },
+  sheetTitle: { fontSize: 16, fontWeight: '700', color: PT.ink900 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12, marginBottom: 14 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 12, height: 12, borderRadius: 2, borderWidth: 1.5 },
+  legendDot: { width: 12, height: 12, borderRadius: 8, borderWidth: 1.5 },
   legendText: { fontSize: 11.5, fontWeight: '600', color: PT.ink600 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 12 },
-  cell: { width: 46, height: 40, borderRadius: 2, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  cellText: { fontSize: 13, fontWeight: '800' },
-  sheetPrimary: { backgroundColor: PT.purple600, borderRadius: 2, paddingVertical: 15, alignItems: 'center', marginTop: 6, marginBottom: 10 },
-  sheetPrimaryText: { fontSize: 15, fontWeight: '800', color: PT.card },
+  cell: { width: 46, height: 40, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  cellText: { fontSize: 13, fontWeight: '700' },
+  sheetPrimary: { backgroundColor: PT.purple600, borderRadius: 8, paddingVertical: 15, alignItems: 'center', marginTop: 6, marginBottom: 10 },
+  sheetPrimaryText: { fontSize: 15, fontWeight: '700', color: PT.card },
 
-  dialogBackdrop: { flex: 1, backgroundColor: 'rgba(27,24,48,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  dialog: { width: '100%', maxWidth: 380, backgroundColor: PT.card, borderRadius: 2, padding: 22, alignItems: 'stretch' },
-  dialogIcon: {
-    alignSelf: 'center',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: PT.purple50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialogTitle: { fontSize: 18, fontWeight: '800', color: PT.ink900, textAlign: 'center', marginTop: 12 },
-  dialogSub: { fontSize: 13, fontWeight: '500', color: PT.ink600, textAlign: 'center', marginTop: 6, lineHeight: 19 },
-  dialogStats: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 18 },
-  dialogStat: { flex: 1, backgroundColor: PT.bg, borderRadius: 2, paddingVertical: 12, alignItems: 'center' },
-  dialogStatValue: { fontSize: 20, fontWeight: '800' },
+  dialogStats: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  dialogStat: { flex: 1, backgroundColor: PT.tealSoft, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  dialogStatValue: { fontSize: 20, fontWeight: '700' },
   dialogStatLabel: { fontSize: 11, fontWeight: '700', color: PT.ink400, marginTop: 2 },
-  dialogSecondary: { alignItems: 'center', paddingVertical: 8 },
-  dialogSecondaryText: { fontSize: 13.5, fontWeight: '700', color: PT.ink600 },
 
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(27,24,48,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,

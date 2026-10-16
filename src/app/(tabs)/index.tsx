@@ -1,29 +1,27 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
-import { setStatusBarStyle } from 'expo-status-bar';
-import { useCallback } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CategoryPerformance } from '@/components/home/CategoryPerformance';
 import { ContinueLearning } from '@/components/home/ContinueLearning';
-import { DailyMotivation } from '@/components/home/DailyMotivation';
 import { HomeHero } from '@/components/home/HomeHero';
 import { HT } from '@/components/home/home-theme';
+import { LeaderboardPreview } from '@/components/home/LeaderboardPreview';
 import { QuickActions } from '@/components/home/QuickActions';
+import { ScrollEdgeFade, ScrollItem } from '@/components/ui/scroll-item';
+import { SectionHeader } from '@/components/home/SectionHeader';
 import { StatsStrip } from '@/components/home/StatsStrip';
 import { TodaysPlan } from '@/components/home/TodaysPlan';
-import { WeakAreas } from '@/components/home/WeakAreas';
 import { useHomeDashboard } from '@/hooks/useHomeDashboard';
+import { Pressable } from '@/components/ui/pressable';
 
 export default function HomeScreen() {
   const { data, isLoading, error, refreshing, refetch } = useHomeDashboard();
-
-  // Light status bar over the dark hero; back to dark when leaving Home.
-  useFocusEffect(
-    useCallback(() => {
-      setStatusBarStyle('light');
-      return () => setStatusBarStyle('dark');
-    }, [])
-  );
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
 
   if (isLoading) return <HomeSkeleton />;
 
@@ -41,30 +39,67 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={HT.gold} />}>
-        <HomeHero
-          greeting={data.greeting}
-          studentName={data.studentName}
-          targetLabel={data.targetLabel}
-          streak={data.streak}
-          overallProgress={data.overallProgress}
-          onPressProfile={() => router.push('/profile')}
-          onPressStreak={() => router.push('/streak')}
-        />
+      {/* 1. Header  ·  2. Streak & daily goal — stay put while the rest scrolls */}
+      <HomeHero
+        greeting={data.greeting}
+        studentName={data.studentName}
+        notificationCount={data.notificationCount}
+        streak={data.streak}
+        dailyGoal={data.dailyGoal}
+        onPressNotifications={() => router.push('/notifications')}
+        onPressStreak={() => router.push('/streak')}
+        onPressDailyGoal={() => router.push('/daily-tasks')}
+      />
 
-        <StatsStrip questionsSolved={data.questionsSolved} accuracy={data.accuracy} paperTests={data.paperTestsCompleted} />
+      {/* Each section shrinks and fades as it scrolls up under the header. */}
+      <View style={styles.scrollArea}>
+        <Animated.ScrollView
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={HT.primary} colors={[HT.primary]} />}>
+          {/* 3. Continue learning */}
+          <ScrollItem scrollY={scrollY} style={styles.first}>
+            <ContinueLearning data={data.continueLearning} />
+          </ScrollItem>
 
-        <View style={styles.body}>
-          <ContinueLearning data={data.continueLearning} />
-          <TodaysPlan plan={data.todaysPlan} />
-          <QuickActions />
-          <WeakAreas areas={data.weakAreas} />
-          <DailyMotivation text={data.dailyMotivation} />
-        </View>
-      </ScrollView>
+          {/* 4. Leaderboard preview */}
+          <ScrollItem scrollY={scrollY} style={styles.padded}>
+            <LeaderboardPreview leaderboard={data.leaderboard} />
+          </ScrollItem>
+
+          {/* 5. Performance summary */}
+          <ScrollItem scrollY={scrollY}>
+            <View style={styles.padded}>
+              <SectionHeader title="Your progress" />
+            </View>
+            <StatsStrip
+              questionsSolved={data.stats.questionsSolved}
+              accuracy={data.stats.accuracy}
+              syllabusCoverage={data.stats.syllabusCoverage}
+              paperTests={data.stats.paperTests}
+            />
+          </ScrollItem>
+
+          {/* 6. Today's study plan */}
+          <ScrollItem scrollY={scrollY} style={styles.planWrap}>
+            <TodaysPlan plan={data.todaysPlan} />
+          </ScrollItem>
+
+          {/* 7. Quick actions */}
+          <ScrollItem scrollY={scrollY} style={styles.padded}>
+            <QuickActions />
+          </ScrollItem>
+
+          {/* 8. Strong & weak categories */}
+          <ScrollItem scrollY={scrollY} style={styles.padded}>
+            <CategoryPerformance performance={data.performance} />
+          </ScrollItem>
+        </Animated.ScrollView>
+        {/* Soft edge under the header, so sections fade out instead of being cut off. */}
+        <ScrollEdgeFade color={HT.bg} />
+      </View>
     </View>
   );
 }
@@ -73,13 +108,11 @@ export default function HomeScreen() {
 function HomeSkeleton() {
   return (
     <View style={styles.screen}>
-      <LinearGradient colors={[HT.heroTop, HT.heroBottom]} style={styles.skeletonHero}>
-        <View style={[styles.bone, styles.boneDark, { width: 90, height: 10 }]} />
-        <View style={[styles.bone, styles.boneDark, { width: 180, height: 26, marginTop: 10 }]} />
-        <View style={[styles.bone, styles.boneDark, { width: 140, height: 12, marginTop: 10 }]} />
-        <View style={[styles.bone, styles.boneDark, { height: 48, marginTop: 24 }]} />
-      </LinearGradient>
-      <View style={[styles.bone, styles.skeletonStats]} />
+      <SafeAreaView edges={['top']} style={styles.skeletonHero}>
+        <View style={[styles.bone, { width: 90, height: 12 }]} />
+        <View style={[styles.bone, { width: 180, height: 26, marginTop: 8 }]} />
+        <View style={[styles.bone, { height: 48, marginTop: 18 }]} />
+      </SafeAreaView>
       <View style={styles.body}>
         <View style={[styles.bone, { height: 140 }]} />
         <View style={[styles.bone, { height: 180, marginTop: 28 }]} />
@@ -90,16 +123,27 @@ function HomeSkeleton() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: HT.bg },
+  scrollArea: { flex: 1 },
   body: { paddingHorizontal: 20, paddingTop: 28 },
+  // Same spacing the sections had as one long page.
+  padded: { paddingHorizontal: 20 },
+  first: { paddingHorizontal: 20, marginTop: 20 },
+  planWrap: { paddingHorizontal: 20, paddingTop: 28 },
 
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: HT.bg, paddingHorizontal: 32 },
-  errorTitle: { fontSize: 16, fontWeight: '800', color: HT.ink, textAlign: 'center' },
+  errorTitle: { fontSize: 16, fontWeight: '700', color: HT.ink, textAlign: 'center' },
   errorText: { color: HT.muted, textAlign: 'center', marginTop: 6, fontWeight: '500' },
   retryBtn: { marginTop: 18, backgroundColor: HT.primary, paddingVertical: 12, paddingHorizontal: 28, borderRadius: HT.radius },
-  retryText: { color: HT.surface, fontWeight: '800' },
+  retryText: { color: HT.surface, fontWeight: '700' },
 
-  skeletonHero: { paddingHorizontal: 20, paddingTop: 72, paddingBottom: 56 },
-  skeletonStats: { height: 86, marginTop: -36, marginHorizontal: 20, backgroundColor: HT.surface, borderWidth: 1, borderColor: HT.hairline },
-  bone: { backgroundColor: '#E9E7F0', borderRadius: HT.radius },
-  boneDark: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  // Same violet panel as the real header, so nothing jumps when it loads.
+  skeletonHero: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 18,
+    backgroundColor: HT.primarySoft,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  bone: { backgroundColor: '#F2F2F2', borderRadius: HT.radius },
 });

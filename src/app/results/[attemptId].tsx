@@ -1,40 +1,42 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UI } from '@/constants/ui';
 
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
 import type { AttemptResultsResponse } from '@/types/api';
+import { Pressable } from '@/components/ui/pressable';
+import { playSound } from '@/lib/sounds';
 
 // ─── Design tokens aligned with quiz_complete_page.html ───────────────────
 const RC = {
-  purple900: '#2A1065',
-  purple800: '#3A1794',
-  purple700: '#4C1FB8',
-  purple600: '#5E2CE0',
-  purple500: '#6D3AF0',
-  purple400: '#8B5CF6',
-  purple100: '#EEE9FE',
-  purple50: '#F6F3FF',
-  bg: '#F7F6FB',
-  card: '#FFFFFF',
-  ink900: '#1B1830',
-  ink600: '#635F7A',
-  ink400: '#9C98B4',
-  ink300: '#C6C3DA',
-  line: '#ECE9F7',
-  gold: '#F5A623',
-  goldSoft: '#FFF3DC',
-  goldDeep: '#B77A0E',
-  green: '#1FAE64',
-  greenSoft: '#E6F8EF',
-  red: '#E14848',
-  redSoft: '#FDECEC',
-  blue: '#3B7DDB',
-  blueSoft: '#EAF2FC',
+  purple900: UI.accent,
+  purple800: UI.accent,
+  purple700: UI.accent,
+  purple600: UI.accent,
+  purple500: UI.accent,
+  purple400: UI.accent,
+  purple100: UI.accentSoft,
+  purple50: UI.accentSoft,
+  bg: UI.bg,
+  card: UI.bg,
+  ink900: UI.text,
+  ink600: UI.grey,
+  ink400: UI.greyLight,
+  ink300: UI.border,
+  line: UI.border,
+  gold: UI.accent,
+  goldSoft: UI.accentSoft,
+  goldDeep: UI.accent,
+  green: UI.green,
+  greenSoft: UI.greenSoft,
+  red: UI.red,
+  redSoft: UI.redSoft,
+  blue: UI.accent,
+  blueSoft: UI.accentSoft,
 } as const;
 
 function Stars({ filled, size = 34, color = RC.gold, emptyColor = RC.ink300 }: { filled: number; size?: number; color?: string; emptyColor?: string }) {
@@ -147,8 +149,9 @@ function ReviewQuestionCard({ question, index }: { question: any; index: number 
 }
 
 export default function ResultsScreen() {
-  const { attemptId } = useLocalSearchParams<{ attemptId: string }>();
+  const { attemptId, done } = useLocalSearchParams<{ attemptId: string; done?: string }>();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
   
   const [results, setResults] = useState<AttemptResultsResponse | null>(null);
   const [streak, setStreak] = useState<number>(0);
@@ -162,12 +165,13 @@ export default function ResultsScreen() {
       api.getResults(token, Number(attemptId)),
       api.streak(token).catch(() => ({ streak: 0 })),
     ]).then(([res, streakRes]) => {
+      if (done === '1') playSound('success');
       setResults(res);
       if (streakRes && 'streak' in streakRes) {
         setStreak(streakRes.streak);
       }
     });
-  }, [token, attemptId]);
+  }, [token, attemptId, done]);
 
   if (!results) {
     return (
@@ -187,7 +191,6 @@ export default function ResultsScreen() {
     timeString = `${m}:${s.toString().padStart(2, '0')}`;
   }
 
-
   const handleReviewScroll = () => {
     if (scrollViewRef.current && reviewY > 0) {
       scrollViewRef.current.scrollTo({ y: reviewY, animated: true });
@@ -202,38 +205,25 @@ export default function ResultsScreen() {
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Celebration Header ── */}
-        <LinearGradient
-          colors={[RC.purple700, RC.purple900]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={styles.celebrate}
-        >
+        {/* ── Header ── */}
+        <View style={styles.celebrate}>
           <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-            {/* Confetti particles simulated visually */}
-            <View style={[styles.confetti, { top: 20, left: 30, backgroundColor: RC.gold, transform: [{ rotate: '20deg' }] }]} />
-            <View style={[styles.confetti, { top: 50, left: 80, backgroundColor: '#fff', borderRadius: 2 }]} />
-            <View style={[styles.confetti, { top: 15, right: 50, backgroundColor: RC.purple400, transform: [{ rotate: '-15deg' }] }]} />
-            <View style={[styles.confetti, { top: 70, right: 90, backgroundColor: RC.gold, borderRadius: 2 }]} />
-            <View style={[styles.confetti, { top: 35, left: 170, backgroundColor: '#fff', transform: [{ rotate: '40deg' }] }]} />
-            
             <View style={styles.trophyWrap}>
               <View style={styles.trophyGlow}>
-                <Ionicons name="trophy" size={48} color={RC.gold} />
+                <Ionicons name="checkmark" size={30} color={RC.purple600} />
               </View>
               <Text style={styles.eyebrow}>
                 {currentPaper ? `UPSC ${currentPaper.year}` : currentCategory}
               </Text>
-              <Text style={styles.celebrateTitle}>Quiz Complete!</Text>
-              <Text style={styles.celebrateSub}>Great work — you&apos;re one step closer to your goal.</Text>
+              <Text style={styles.celebrateTitle}>Quiz complete</Text>
             </View>
           </SafeAreaView>
-        </LinearGradient>
+        </View>
 
-        {/* ── Curved Edge Overlay & Body Content ── */}
+        {/* ── Body ── */}
         <View style={styles.bodyContent}>
           {/* Score Card */}
           <View style={styles.scoreCard}>
@@ -292,15 +282,10 @@ export default function ResultsScreen() {
           {/* ── Action Buttons ── */}
           <View style={styles.actionBlock}>
             <Pressable onPress={() => router.replace('/')} style={styles.primaryBtnWrap}>
-              <LinearGradient
-                colors={[RC.purple600, RC.purple800]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.btnPrimary}
-              >
+              <View style={[styles.btnPrimary, { backgroundColor: RC.purple600 }]}>
                 <Text style={styles.btnPrimaryText}>Continue to Home</Text>
                 <Ionicons name="arrow-forward" size={16} color="#fff" />
-              </LinearGradient>
+              </View>
             </Pressable>
 
             <Pressable onPress={handleReviewScroll} style={styles.btnSecondary}>
@@ -314,7 +299,6 @@ export default function ResultsScreen() {
             style={styles.reviewHeader}
           >
             <Text style={styles.reviewTitle}>Question Review</Text>
-            <View style={styles.reviewTitleUnderline} />
           </View>
 
           {/* Question Cards */}
@@ -351,90 +335,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   celebrate: {
-    paddingBottom: 48,
+    backgroundColor: RC.card,
+    paddingBottom: 24,
     paddingHorizontal: 22,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     position: 'relative',
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  confetti: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    opacity: 0.7,
   },
   trophyWrap: {
     alignItems: 'center',
     marginTop: 14,
   },
   trophyGlow: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: 'rgba(245, 166, 35, 0.15)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: RC.purple50,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 13,
+    fontWeight: '400',
+    color: RC.ink600,
     marginTop: 8,
   },
   celebrateTitle: {
-    fontSize: 25,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '700',
     letterSpacing: -0.3,
-    color: '#fff',
+    color: RC.ink900,
     marginTop: 4,
-  },
-  celebrateSub: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.65)',
-    fontWeight: '500',
-    marginTop: 4,
-    textAlign: 'center',
-    paddingHorizontal: 16,
   },
   bodyContent: {
     paddingHorizontal: 22,
-    marginTop: -20,
+    marginTop: 0,
   },
   
   // ── Score Card ──
   scoreCard: {
     backgroundColor: RC.card,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 22,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 18,
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: RC.line,
   },
   scoreStarsBlock: {
     alignItems: 'center',
@@ -447,7 +396,7 @@ const styles = StyleSheet.create({
   },
   scoreFrac: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.ink900,
     marginTop: 10,
     letterSpacing: -0.2,
@@ -480,7 +429,7 @@ const styles = StyleSheet.create({
   },
   scoreVal: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.ink900,
   },
 
@@ -493,31 +442,22 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: RC.card,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 15,
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: RC.line,
   },
   statIcon: {
     width: 32,
     height: 32,
-    borderRadius: 2,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   statVal: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.ink900,
     letterSpacing: -0.2,
   },
@@ -534,37 +474,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
-    backgroundColor: '#FFFBF4',
+    backgroundColor: RC.card,
     borderWidth: 1,
-    borderColor: '#FBE7BE',
-    borderRadius: 2,
+    borderColor: RC.line,
+    borderRadius: 8,
     padding: 15,
   },
   bonusIcon: {
     width: 38,
     height: 38,
-    borderRadius: 2,
-    backgroundColor: '#fff',
+    borderRadius: 8,
+    backgroundColor: RC.purple50,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.goldDeep,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   bonusInfo: {
     flex: 1,
   },
   bonusTitle: {
     fontSize: 13.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.ink900,
   },
   bonusSub: {
@@ -575,7 +504,7 @@ const styles = StyleSheet.create({
   },
   bonusXp: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.goldDeep,
   },
 
@@ -586,19 +515,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 13,
     backgroundColor: RC.card,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 15,
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: RC.line,
   },
   unlockBadge: {
     width: 44,
@@ -609,7 +529,7 @@ const styles = StyleSheet.create({
   },
   unlockTitle: {
     fontSize: 13.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.ink900,
   },
   unlockSub: {
@@ -625,19 +545,8 @@ const styles = StyleSheet.create({
     gap: 11,
   },
   primaryBtnWrap: {
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.purple800,
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.45,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
   },
   btnPrimary: {
     flexDirection: 'row',
@@ -648,26 +557,17 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     color: '#fff',
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: 15,
   },
   btnSecondary: {
     backgroundColor: RC.card,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: RC.line,
   },
   btnSecondaryText: {
     color: RC.ink900,
@@ -682,15 +582,8 @@ const styles = StyleSheet.create({
   },
   reviewTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.ink900,
-  },
-  reviewTitleUnderline: {
-    height: 3,
-    width: 40,
-    backgroundColor: RC.purple600,
-    borderRadius: 2,
-    marginTop: 4,
   },
 
   // ── Review Section / Question Cards ──
@@ -699,19 +592,10 @@ const styles = StyleSheet.create({
   },
   questionCard: {
     backgroundColor: RC.card,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 18,
-    ...Platform.select({
-      ios: {
-        shadowColor: RC.purple900,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: RC.line,
   },
   questionMetaRow: {
     flexDirection: 'row',
@@ -723,7 +607,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: RC.ink600,
     fontWeight: '600',
-    textTransform: 'uppercase',
   },
   questionPaperTag: {
     fontSize: 11,
@@ -732,7 +615,7 @@ const styles = StyleSheet.create({
     backgroundColor: RC.goldSoft,
     paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   questionText: {
@@ -749,7 +632,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
     gap: 10,
@@ -757,13 +640,13 @@ const styles = StyleSheet.create({
   optionLetterBox: {
     width: 24,
     height: 24,
-    borderRadius: 2,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionLetterText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   optionTextLabel: {
     flex: 1,
@@ -781,7 +664,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 16,
     backgroundColor: RC.purple50,
-    borderRadius: 2,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: RC.purple100,
   },
@@ -798,7 +681,7 @@ const styles = StyleSheet.create({
   },
   explanationTitle: {
     fontSize: 12.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.purple700,
     marginBottom: 4,
   },
@@ -812,7 +695,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 12,
     backgroundColor: RC.goldSoft,
-    borderRadius: 2,
+    borderRadius: 8,
   },
   revisionTitleRow: {
     flexDirection: 'row',
@@ -822,7 +705,7 @@ const styles = StyleSheet.create({
   },
   revisionTitle: {
     fontSize: 12.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: RC.goldDeep,
   },
   revisionText: {

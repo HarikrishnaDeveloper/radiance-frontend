@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Pressable } from '@/components/ui/pressable';
 
 import { StudyNotes } from './study-notes';
 import { PT, questionLabel } from './theme';
@@ -116,22 +118,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 18,
     marginBottom: 10,
     backgroundColor: PT.card,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 14,
     borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: PT.line,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  no: { fontSize: 12, fontWeight: '800', color: PT.ink900 },
+  no: { fontSize: 12, fontWeight: '700', color: PT.ink900 },
   subject: { flex: 1, fontSize: 11.5, fontWeight: '700', color: PT.ink400 },
-  outcomePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 2 },
-  outcomeText: { fontSize: 11, fontWeight: '800' },
+  outcomePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8 },
+  outcomeText: { fontSize: 11, fontWeight: '700' },
   text: { fontSize: 14, lineHeight: 21, fontWeight: '600', color: PT.ink900 },
-  image: { width: '100%', height: 180, borderRadius: 2 },
-  droppedNote: { fontSize: 12.5, fontWeight: '700', color: PT.teal, backgroundColor: PT.tealSoft, padding: 10, borderRadius: 2 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 2, borderWidth: 1.5 },
-  optionLabel: { width: 18, fontSize: 13, fontWeight: '800', color: PT.ink600 },
+  image: { width: '100%', height: 180, borderRadius: 8 },
+  droppedNote: { fontSize: 12.5, fontWeight: '700', color: PT.teal, backgroundColor: PT.tealSoft, padding: 10, borderRadius: 8 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 8, borderWidth: 1.5 },
+  optionLabel: { width: 18, fontSize: 13, fontWeight: '700', color: PT.ink600 },
   optionText: { flex: 1, fontSize: 13, fontWeight: '600', color: PT.ink900, lineHeight: 18 },
-  yourTag: { fontSize: 10.5, fontWeight: '800' },
+  yourTag: { fontSize: 10.5, fontWeight: '700' },
   expandRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
-  expandText: { fontSize: 12.5, fontWeight: '800', color: PT.purple600 },
+  expandText: { fontSize: 12.5, fontWeight: '700', color: PT.purple600 },
 });

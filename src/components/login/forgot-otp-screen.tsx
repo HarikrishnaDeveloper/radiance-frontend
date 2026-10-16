@@ -1,10 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +15,7 @@ import { Toast } from '../toast';
 import { loginStyles as styles } from './login-styles';
 import { OtpInput } from './otp-input';
 import { useErrorToast } from '@/hooks/use-error-toast';
+import { Pressable } from '@/components/ui/pressable';
 
 type Props = {
   phone: string;
@@ -42,7 +40,6 @@ export function ForgotOtpScreen({
 }: Props) {
   const [toast, setToast] = useErrorToast(error);
 
-
   return (
     <View style={styles.container}>
       <Toast toast={toast} onHide={() => setToast(null)} />
@@ -55,16 +52,13 @@ export function ForgotOtpScreen({
               </Pressable>
             </View>
 
-            <Animated.View entering={FadeIn.duration(400)} style={localStyles.illustrationWrap} pointerEvents="none">
-              <Image
-                style={localStyles.illustrationImage}
-                source={require('../../../assets/login/otp-screen.png')}
-                contentFit="contain"
-                pointerEvents="none"
-              />
+            <Animated.View entering={FadeIn.duration(400)} style={styles.iconWrap}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="chatbubble-ellipses-outline" size={28} color={COLORS.purple} />
+              </View>
             </Animated.View>
 
-            <Animated.View entering={FadeInUp.duration(400)} style={[styles.content, { zIndex: 10, elevation: 10 }]}>
+            <Animated.View entering={FadeInUp.duration(400)} style={[styles.content, { zIndex: 10 }]}>
               <Text style={[styles.title, { textAlign: 'center' }]}>Verify Your Number</Text>
               <Text style={styles.subtitle}>Enter the 6-digit OTP sent to</Text>
               <View style={styles.phoneEditRow}>
@@ -83,14 +77,10 @@ export function ForgotOtpScreen({
               </View>
 
               <Pressable onPress={onVerify} disabled={submitting} style={({ pressed }) => [pressed && styles.buttonPressed]}>
-                <LinearGradient
-                  colors={[COLORS.purple, COLORS.purpleDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.otpVerifyButton}>
+                <View style={[styles.otpVerifyButton, { backgroundColor: COLORS.purple }]}>
                   <Text style={styles.otpVerifyButtonText}>{submitting ? 'Verifying…' : 'Verify'}</Text>
                   {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
-                </LinearGradient>
+                </View>
               </Pressable>
             </Animated.View>
           </SafeAreaView>
@@ -109,31 +99,15 @@ const localStyles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
     zIndex: 10,
-    elevation: 10,
   },
   backBtn: {
     width: 44,
     height: 44,
-    borderRadius: 2,
-    backgroundColor: '#F8F7FF',
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
     borderWidth: 1.5,
-    borderColor: '#E6E4F8',
+    borderColor: COLORS.grayBorder,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  illustrationWrap: {
-    height: 250,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    marginBottom: 16,
-    overflow: 'visible',
-    zIndex: 1,
-  },
-  illustrationImage: {
-    width: '80%',
-    maxWidth: 280,
-    aspectRatio: 1,
-    top: -20,
   },
 });

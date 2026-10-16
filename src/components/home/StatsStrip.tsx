@@ -1,29 +1,44 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { HT, homeShadow } from './home-theme';
+import { HT } from './home-theme';
 
 interface Props {
   questionsSolved: number;
   accuracy: number;
+  syllabusCoverage: number;
   paperTests: number;
 }
 
-// Three headline numbers in one card that overlaps the hero's lower edge.
-export function StatsStrip({ questionsSolved, accuracy, paperTests }: Props) {
-  const stats: { icon: keyof typeof Ionicons.glyphMap; value: string; label: string }[] = [
-    { icon: 'checkmark-done', value: questionsSolved.toLocaleString(), label: 'Solved' },
-    { icon: 'analytics', value: `${accuracy}%`, label: 'Accuracy' },
-    { icon: 'document-text', value: String(paperTests), label: 'Paper tests' },
+type Stat = { label: string; value: string; percent?: number };
+
+// Performance summary: four headline numbers in a 2×2 grid. Percentages get a
+// thin bar underneath so they read at a glance.
+export function StatsStrip({ questionsSolved, accuracy, syllabusCoverage, paperTests }: Props) {
+  const stats: Stat[] = [
+    { label: 'Questions solved', value: questionsSolved.toLocaleString() },
+    { label: 'Accuracy', value: `${accuracy}%`, percent: accuracy },
+    { label: 'Syllabus covered', value: `${syllabusCoverage}%`, percent: syllabusCoverage },
+    { label: 'Full tests taken', value: String(paperTests) },
   ];
 
   return (
     <View style={styles.card}>
       {stats.map((s, i) => (
-        <View key={s.label} style={[styles.cell, i > 0 && styles.divider]}>
-          <Ionicons name={s.icon} size={14} color={HT.goldDeep} />
-          <Text style={styles.value}>{s.value}</Text>
-          <Text style={styles.label}>{s.label}</Text>
+        <View
+          key={s.label}
+          style={[styles.cell, i % 2 === 1 && styles.cellRight, i >= 2 && styles.cellBottom]}
+          accessibilityLabel={`${s.label}: ${s.value}`}>
+          <Text style={styles.label} numberOfLines={1}>
+            {s.label}
+          </Text>
+          <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {s.value}
+          </Text>
+          {s.percent !== undefined && (
+            <View style={styles.track}>
+              <View style={[styles.fill, { width: `${Math.min(Math.max(s.percent, 0), 100)}%` }]} />
+            </View>
+          )}
         </View>
       ))}
     </View>
@@ -33,17 +48,18 @@ export function StatsStrip({ questionsSolved, accuracy, paperTests }: Props) {
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     backgroundColor: HT.surface,
     borderRadius: HT.radius,
     borderWidth: 1,
     borderColor: HT.hairline,
-    marginTop: -36,
     marginHorizontal: 20,
-    paddingVertical: 16,
-    ...homeShadow,
   },
-  cell: { flex: 1, alignItems: 'center', gap: 4 },
-  divider: { borderLeftWidth: 1, borderLeftColor: HT.hairline },
-  value: { fontSize: 22, fontWeight: '800', color: HT.ink, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
-  label: { fontSize: 10.5, fontWeight: '700', color: HT.muted, letterSpacing: 0.8, textTransform: 'uppercase' },
+  cell: { width: '50%', paddingVertical: 14, paddingHorizontal: 16 },
+  cellRight: { borderLeftWidth: 1, borderLeftColor: HT.hairline },
+  cellBottom: { borderTopWidth: 1, borderTopColor: HT.hairline },
+  label: { fontSize: 13, color: HT.muted },
+  value: { fontSize: 24, fontWeight: '700', color: HT.ink, marginTop: 4, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  track: { height: 4, borderRadius: 2, backgroundColor: HT.hairline, marginTop: 8, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 2, backgroundColor: HT.primary },
 });

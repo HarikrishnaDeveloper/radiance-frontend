@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ReviewCard } from '@/components/paper-test/review-card';
 import { StudyNotes } from '@/components/paper-test/study-notes';
@@ -13,6 +12,9 @@ import { StarRating } from '@/components/star-rating';
 import { useAuth } from '@/context/auth-context';
 import { ApiError, api } from '@/lib/api-client';
 import type { DailyAnswerFeedback, DailyChallengeResponse, SafeOption } from '@/types/api';
+import { dialog } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
+import { playSound } from '@/lib/sounds';
 
 type OptionState = 'idle' | 'selected' | 'correct' | 'wrong' | 'dimmed';
 
@@ -32,7 +34,7 @@ export default function DailyChallengeScreen() {
   const load = useCallback(() => {
     if (!token) return;
     api.dailyChallenge(token, setChallenge).then(setChallenge).catch(() => {
-      Alert.alert('Could not load the challenge', 'Please check your connection and try again.', [
+      dialog.error('Could not load the challenge', 'Please check your connection and try again.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     });
@@ -62,10 +64,11 @@ export default function DailyChallengeScreen() {
     setChecking(true);
     try {
       const res = await api.checkDailyAnswer(token, question.id, optionId);
+      if (optionId !== null) playSound(res.isCorrect ? 'correct' : 'wrong');
       setFeedback((prev) => new Map(prev).set(question.id, { ...res, skipped: optionId === null }));
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) load();
-      else Alert.alert('Answer not checked', e instanceof ApiError ? e.message : 'Please try again.');
+      else dialog.error('Answer not checked', e instanceof ApiError ? e.message : 'Please try again.');
     } finally {
       setChecking(false);
     }
@@ -86,9 +89,10 @@ export default function DailyChallengeScreen() {
       );
       // Reload: the completed challenge comes back with its full review.
       const fresh = await api.dailyChallenge(token);
+      playSound('success');
       setChallenge(fresh);
     } catch (e) {
-      Alert.alert('Could not submit', e instanceof ApiError ? e.message : 'Please try again.');
+      dialog.error('Could not submit', e instanceof ApiError ? e.message : 'Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -166,7 +170,7 @@ export default function DailyChallengeScreen() {
 
       <SafeAreaView edges={['bottom']} style={styles.footer}>
         {current ? (
-          <Pressable onPress={next} disabled={submitting} style={[styles.primaryBtn, submitting && { opacity: 0.6 }]}>
+          <Pressable onPress={next} sound={isLast ? 'submit' : undefined} disabled={submitting} style={[styles.primaryBtn, submitting && { opacity: 0.6 }]}>
             {submitting ? (
               <ActivityIndicator color={PT.card} />
             ) : (
@@ -214,6 +218,7 @@ function ResultBanner({ feedback }: { feedback: DailyAnswerFeedback & { skipped?
 }
 
 function ChallengeReview({ challenge }: { challenge: DailyChallengeResponse }) {
+  const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const progress = challenge.progress!;
   const review = challenge.review ?? [];
@@ -232,14 +237,14 @@ function ChallengeReview({ challenge }: { challenge: DailyChallengeResponse }) {
       <FlatList
         data={review}
         keyExtractor={(q) => String(q.id)}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <LinearGradient colors={[PT.purple700, PT.purple900]} style={styles.hero}>
+            <View style={styles.hero}>
               <SafeAreaView edges={['top']}>
                 <Pressable onPress={() => router.replace('/')} hitSlop={10} style={styles.heroBack}>
-                  <Ionicons name="chevron-back" size={18} color={PT.card} />
+                  <Ionicons name="chevron-back" size={22} color={PT.ink900} />
                 </Pressable>
                 <Text style={styles.heroEyebrow}>Today&apos;s Daily Challenge</Text>
                 <View style={styles.heroScoreRow}>
@@ -250,7 +255,7 @@ function ChallengeReview({ challenge }: { challenge: DailyChallengeResponse }) {
                   {progress.correctAnswers}/{progress.completedQuestions} correct · a new challenge unlocks tomorrow
                 </Text>
               </SafeAreaView>
-            </LinearGradient>
+            </View>
             <Text style={styles.sectionLabel}>Review every question</Text>
           </View>
         }
@@ -277,20 +282,20 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 10 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBtn: { width: 34, height: 34, borderRadius: 2, backgroundColor: PT.card, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 15, fontWeight: '800', color: PT.ink900 },
+  iconBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: PT.card, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 15, fontWeight: '700', color: PT.ink900 },
   subtitle: { fontSize: 11.5, fontWeight: '700', color: PT.ink400, marginTop: 1 },
-  progressTrack: { height: 6, borderRadius: 2, backgroundColor: PT.line, overflow: 'hidden', marginTop: 12 },
-  progressFill: { height: '100%', borderRadius: 2, backgroundColor: PT.purple500 },
+  progressTrack: { height: 6, borderRadius: 8, backgroundColor: PT.line, overflow: 'hidden', marginTop: 12 },
+  progressFill: { height: '100%', borderRadius: 8, backgroundColor: PT.purple500 },
   metaRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   subjectTag: {
     fontSize: 11.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PT.purple600,
     backgroundColor: PT.purple50,
     paddingVertical: 4,
     paddingHorizontal: 9,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   yearTag: {
@@ -300,50 +305,48 @@ const styles = StyleSheet.create({
     backgroundColor: PT.goldSoft,
     paddingVertical: 4,
     paddingHorizontal: 9,
-    borderRadius: 2,
+    borderRadius: 8,
     overflow: 'hidden',
   },
 
   body: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 24 },
   questionText: { fontSize: 16.5, fontWeight: '700', color: PT.ink900, lineHeight: 25 },
-  questionImage: { width: '100%', height: 200, borderRadius: 2, marginTop: 12 },
+  questionImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 12 },
   options: { marginTop: 20, gap: 10 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderRadius: 2, padding: 13 },
-  optionLetter: { width: 30, height: 30, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
-  optionLetterText: { fontSize: 13, fontWeight: '800' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderRadius: 8, padding: 13 },
+  optionLetter: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  optionLetterText: { fontSize: 13, fontWeight: '700' },
   optionText: { flex: 1, fontSize: 14, fontWeight: '600', color: PT.ink900, lineHeight: 20 },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 2 },
-  bannerText: { flex: 1, fontSize: 13.5, fontWeight: '800' },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 8 },
+  bannerText: { flex: 1, fontSize: 13.5, fontWeight: '700' },
 
   footer: { backgroundColor: PT.card, borderTopWidth: 1, borderTopColor: PT.line, paddingHorizontal: 16, paddingTop: 10 },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 10 },
   skipBtn: { paddingVertical: 14, paddingHorizontal: 6 },
   skipText: { fontSize: 13, fontWeight: '700', color: PT.ink600 },
-  primaryBtn: { backgroundColor: PT.purple600, borderRadius: 2, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
+  primaryBtn: { backgroundColor: PT.purple600, borderRadius: 8, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   primaryBtnDisabled: { backgroundColor: PT.ink300 },
-  primaryBtnText: { fontSize: 15, fontWeight: '800', color: PT.card },
+  primaryBtnText: { fontSize: 15, fontWeight: '700', color: PT.card },
 
-  hero: { paddingHorizontal: 20, paddingBottom: 24, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
+  hero: { paddingHorizontal: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: PT.line },
   heroBack: {
     width: 34,
     height: 34,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 8,
+    marginLeft: -8,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
     marginBottom: 16,
   },
-  heroEyebrow: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
+  heroEyebrow: { fontSize: 13, color: PT.ink600 },
   heroScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
-  heroScore: { fontSize: 42, fontWeight: '800', color: PT.card },
-  heroSub: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginTop: 6 },
+  heroScore: { fontSize: 42, fontWeight: '700', color: PT.ink900 },
+  heroSub: { fontSize: 13, color: PT.ink600, marginTop: 6 },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PT.ink400,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginTop: 20,
     marginBottom: 10,
     marginHorizontal: 18,

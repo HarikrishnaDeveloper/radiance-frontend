@@ -4,7 +4,8 @@ import { TextInput, View, useWindowDimensions } from 'react-native';
 import { loginStyles as styles, OTP_LENGTH } from './login-styles';
 
 const CONTENT_HORIZONTAL_PADDING = 28;
-const OTP_GAP = 12;
+// Tighter gap on narrow (<360px) phones so the six boxes keep a usable width.
+const otpGap = (windowWidth: number) => (windowWidth < 360 ? 8 : 12);
 const MAX_OTP_BOX_WIDTH = 46;
 
 export function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -12,7 +13,8 @@ export function OtpInput({ value, onChange }: { value: string; onChange: (v: str
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const { width: windowWidth } = useWindowDimensions();
 
-  const availableWidth = windowWidth - CONTENT_HORIZONTAL_PADDING * 2 - OTP_GAP * (OTP_LENGTH - 1);
+  const gap = otpGap(windowWidth);
+  const availableWidth = windowWidth - CONTENT_HORIZONTAL_PADDING * 2 - gap * (OTP_LENGTH - 1);
   const boxWidth = Math.min(MAX_OTP_BOX_WIDTH, Math.floor(availableWidth / OTP_LENGTH));
 
   function handleChange(text: string, index: number) {
@@ -40,7 +42,7 @@ export function OtpInput({ value, onChange }: { value: string; onChange: (v: str
   }
 
   return (
-    <View style={styles.otpRow}>
+    <View style={[styles.otpRow, { gap }]}>
       {Array.from({ length: OTP_LENGTH }).map((_, i) => (
         <TextInput
           key={i}

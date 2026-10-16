@@ -7,13 +7,14 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
+import { useColorScheme, View, StyleSheet } from 'react-native';
 
 import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Pressable } from '@/components/ui/pressable';
 
 export default function AppTabs() {
   return (
@@ -30,8 +31,8 @@ export default function AppTabs() {
           <TabTrigger name="tests" href="/tests" asChild>
             <TabButton>Tests</TabButton>
           </TabTrigger>
-          <TabTrigger name="progress" href="/progress" asChild>
-            <TabButton>Progress</TabButton>
+          <TabTrigger name="leaderboard" href="/leaderboard" asChild>
+            <TabButton>Leaderboard</TabButton>
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>Profile</TabButton>
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
   innerContainer: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.five,
-    borderRadius: 2,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
   tabButtonView: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
-    borderRadius: 2,
+    borderRadius: 8,
   },
   externalPressable: {
     flexDirection: 'row',

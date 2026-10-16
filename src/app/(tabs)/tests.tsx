@@ -1,264 +1,178 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { formatMarks } from '@/components/paper-test/theme';
-import { StagePath } from '@/components/stage-path';
-import { Toast, type ToastData } from '@/components/toast';
+import { PaperArcCarousel } from '@/components/tests/PaperArcCarousel';
+import { TestDashboard } from '@/components/tests/TestDashboard';
+import { Button } from '@/components/ui/button';
+import { ScrollEdgeFade } from '@/components/ui/scroll-item';
+import { ViewSwitcher } from '@/components/ui/view-switcher';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
-import type { CategoryDetailResponse, CategorySummary, PaperSummary, StageSummary } from '@/types/api';
+import type { LeaderboardResponse, PaperResultsResponse, PaperSummary } from '@/types/api';
+import { Pressable } from '@/components/ui/pressable';
 
-type Pane = 'path' | 'papers';
+// Tests tab: previous-year question papers (arc carousel) and an Analytics
+// view with the student's results. Subject stages live in Practice.
+type View_ = 'papers' | 'analytics';
+// How many recent finished papers Analytics studies.
+const RECENT_RESULTS = 6;
+const VIEWS: { key: View_; label: string }[] = [
+  { key: 'papers', label: 'Papers' },
+  { key: 'analytics', label: 'Analytics' },
+];
 
 export default function TestsScreen() {
   const { token } = useAuth();
-  const [categories, setCategories] = useState<CategorySummary[]>([]);
-  const [papers, setPapers] = useState<PaperSummary[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [categoryDetail, setCategoryDetail] = useState<CategoryDetailResponse | null>(null);
-  const [pane, setPane] = useState<Pane>('path');
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const [papers, setPapers] = useState<PaperSummary[] | null>(null);
+  const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
+  const [view, setView] = useState<View_>('papers');
+  const [results, setResults] = useState<PaperResultsResponse[] | null>(null);
+  const analyticsY = useSharedValue(0);
+  const onAnalyticsScroll = useAnimatedScrollHandler((e) => {
+    analyticsY.value = e.contentOffset.y;
+  });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    if (!token) return;
+    // Rank comes from the (cached) dashboard; the dashboard card works without it.
+    api
+      .dashboard(token, (d) => setLeaderboard(d.leaderboard), force)
+      .then((d) => setLeaderboard(d.leaderboard))
+      .catch(() => undefined);
+    try {
+      setPapers(await api.papers(token, setPapers, force));
+      setError(false);
+    } catch {
+      // Keep showing what we have; only an empty screen needs the error state.
+      setError(true);
+    }
+  }, [token]);
+
+  // Analytics reads the full results of the most recent finished papers. Only
+  // fetched while Analytics is open, since each result is a separate request.
+  const loadResults = useCallback(async () => {
     if (!token) return;
     try {
-      const [categoriesRes, papersRes] = await Promise.all([
-        api.categories(token, (freshCats) => setCategories(freshCats)),
-        api.papers(token, (freshPapers) => setPapers(freshPapers))
-      ]);
-      setCategories(categoriesRes);
-      setPapers(papersRes);
-      setSelectedCategoryId((prev) => prev ?? categoriesRes[0]?.id ?? null);
+      const recent = (await api.attemptHistory(token, true))
+        .filter((a) => a.mode === 'FULL_PAPER' && a.completedAt)
+        .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
+        .slice(0, RECENT_RESULTS);
+      const settled = await Promise.allSettled(recent.map((a) => api.paperResults(token, a.id)));
+      setResults(settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : [])));
     } catch {
-      // Keep displaying old data if available
+      setResults((prev) => prev ?? []);
     }
   }, [token]);
 
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+      if (view === 'analytics') loadResults();
+    }, [load, loadResults, view])
   );
 
-  const loadCategoryDetail = useCallback(
-    async (categoryId: number) => {
-      if (!token) return;
-      try {
-        const detail = await api.categoryDetail(token, categoryId, (freshDetail) => {
-          setCategoryDetail(freshDetail);
-        });
-        setCategoryDetail(detail);
-      } catch {
-        // Silent recovery
-      }
-    },
-    [token]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (selectedCategoryId) loadCategoryDetail(selectedCategoryId);
-    }, [selectedCategoryId, loadCategoryDetail])
-  );
-
-  function handleStagePress(stage: StageSummary, index: number) {
-    if (stage.status === 'LOCKED') {
-      setToast({ type: 'error', message: `Complete Stage ${index} first` });
-      return;
-    }
-    router.push(`/stage/${stage.id}`);
+  async function refresh() {
+    setRefreshing(true);
+    await Promise.all([load(true), view === 'analytics' ? loadResults() : undefined]);
+    setRefreshing(false);
   }
 
   return (
     <View style={styles.screen}>
-      <Toast toast={toast} onHide={() => setToast(null)} />
-      <View style={styles.header}>
-        <SafeAreaView edges={['top']}>
-          <Text style={styles.pageTitle}>Tests</Text>
-          <Text style={styles.pageSub}>Tests & Practice Papers</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {categories.map((category) => {
-              const active = category.id === selectedCategoryId;
-              return (
-                <Pressable key={category.id} onPress={() => setSelectedCategoryId(category.id)}>
-                  <View style={[styles.chip, active && styles.chipActive]}>
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                      {category.foodWorldName ?? category.name}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </SafeAreaView>
-      </View>
-
-      <View style={styles.segment}>
-        <Pressable style={styles.segmentBtn} onPress={() => setPane('path')}>
-          <View style={[styles.segmentInner, pane === 'path' && styles.segmentInnerActive]}>
-            <Text style={[styles.segmentText, pane === 'path' && styles.segmentTextActive]}>Stage Path</Text>
+      <SafeAreaView edges={['top']} style={styles.header}>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pageTitle}>Tests</Text>
+            <Text style={styles.pageSub}>Previous year question papers</Text>
           </View>
-        </Pressable>
-        <Pressable style={styles.segmentBtn} onPress={() => setPane('papers')}>
-          <View style={[styles.segmentInner, pane === 'papers' && styles.segmentInnerActive]}>
-            <Text style={[styles.segmentText, pane === 'papers' && styles.segmentTextActive]}>Previous Papers</Text>
-          </View>
-        </Pressable>
-      </View>
+          <Pressable
+            onPress={() => router.push('/attempt-history')}
+            hitSlop={8}
+            style={({ pressed }) => [styles.historyBtn, pressed && { backgroundColor: COLORS.purpleSoft }]}
+            accessibilityRole="button"
+            accessibilityLabel="Attempt history">
+            <Ionicons name="time-outline" size={22} color={COLORS.navy} />
+          </Pressable>
+        </View>
+        <ViewSwitcher
+          views={VIEWS}
+          value={view}
+          onChange={(next) => {
+            // The analytics list remounts at the top, so its offset starts over too.
+            analyticsY.set(0);
+            setView(next);
+          }}
+        />
+      </SafeAreaView>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {pane === 'path' ? (
-          categoryDetail ? (
+      {!papers ? (
+        <View style={styles.center}>
+          {error ? (
             <>
-              <View style={styles.progressSummary}>
-                <Text style={styles.progressTitle}>
-                  Stage {categoryDetail.stages.filter((s) => s.status === 'COMPLETED').length + 1} of{' '}
-                  {categoryDetail.totalStages}
-                </Text>
-                <Text style={styles.progressSub}>
-                  {categoryDetail.foodWorldName ?? categoryDetail.name} · {categoryDetail.completionPercentage}% complete
-                </Text>
-              </View>
-              <StagePath stages={categoryDetail.stages} onStagePress={handleStagePress} />
+              <Text style={styles.emptyText}>Could not load papers.</Text>
+              <Button label="Try again" onPress={() => load()} style={{ marginTop: 14 }} />
             </>
           ) : (
-            <View style={styles.centerFill}>
-              <ActivityIndicator color={COLORS.purple} />
-            </View>
-          )
+            <ActivityIndicator color={COLORS.purple} />
+          )}
+        </View>
+      ) : view === 'analytics' ? (
+        // Each block shrinks and fades as it scrolls up under the header.
+        <View style={{ flex: 1 }}>
+          <Animated.ScrollView
+            onScroll={onAnalyticsScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.analytics}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.purple} colors={[COLORS.purple]} />}>
+            <TestDashboard
+              papers={papers}
+              results={results}
+              rank={leaderboard?.me ?? null}
+              totalRanked={leaderboard?.totalRanked ?? 0}
+              scrollY={analyticsY}
+              onBrowsePapers={() => setView('papers')}
+            />
+          </Animated.ScrollView>
+          <ScrollEdgeFade color={COLORS.white} />
+        </View>
+      ) : (
+        papers.length === 0 ? (
+          <Text style={[styles.emptyText, { marginTop: 40 }]}>No papers yet.</Text>
         ) : (
-          <>
-            <View style={styles.papersIntro}>
-              <Text style={styles.progressTitle}>UPSC Prelims · {papers.length} years</Text>
-              <Text style={styles.progressSub}>Full papers & subject sections, with explanations and UPSC review points</Text>
-            </View>
-            <View style={styles.papersList}>
-              {papers.map((paper, i) => (
-                <Pressable key={paper.id} onPress={() => router.push(`/paper/${paper.id}`)}>
-                  <View style={[styles.yearItem, i === papers.length - 1 && styles.yearItemLast]}>
-                    <View style={[styles.yearBadge, paper.locked && styles.yearBadgeLocked]}>
-                      <Text style={[styles.yearBadgeText, paper.locked && styles.yearBadgeTextLocked]}>{paper.year}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.yearTitle}>General Studies Paper I</Text>
-                      <Text style={styles.yearMeta}>
-                        {paper.questionCount} Questions
-                        {paper.bestScore ? ` · Best ${formatMarks(paper.bestScore.score)}/${paper.bestScore.maxScore}` : ''}
-                      </Text>
-                    </View>
-                    {paper.inProgressAttemptId ? (
-                      <Text style={styles.resumeTag}>Resume</Text>
-                    ) : paper.isFree ? (
-                      <Text style={styles.freeTag}>Free</Text>
-                    ) : null}
-                    <Ionicons
-                      name={paper.locked ? 'lock-closed' : 'chevron-forward'}
-                      size={16}
-                      color={paper.locked ? COLORS.grayLight : COLORS.gray}
-                    />
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
-        <View style={{ height: 32 }} />
-      </ScrollView>
+          <PaperArcCarousel papers={papers} />
+        )
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.loginBg },
-  centerFill: { paddingTop: 60, alignItems: 'center' },
-  scrollContent: { paddingHorizontal: 22, paddingTop: 18 },
+  screen: { flex: 1, backgroundColor: COLORS.white },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
 
-  header: { backgroundColor: COLORS.purple700, paddingHorizontal: 22, paddingBottom: 18, paddingTop: 6 },
-  pageTitle: { fontSize: 22, fontWeight: '800', color: COLORS.white },
-  pageSub: { fontSize: 13, color: 'rgba(255,255,255,0.68)', marginTop: 3, fontWeight: '500' },
-
-  chipRow: { flexDirection: 'row', gap: 9, marginTop: 16 },
-  chip: {
+  header: { backgroundColor: COLORS.white, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  historyBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingVertical: 9,
-    paddingHorizontal: 15,
-    borderRadius: 2,
-  },
-  chipActive: { backgroundColor: COLORS.white, borderColor: COLORS.white },
-  chipText: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
-  chipTextActive: { color: COLORS.purple700 },
-
-  segment: {
-    margin: 18,
-    marginBottom: 0,
-    backgroundColor: COLORS.white,
-    borderRadius: 2,
-    padding: 4,
-    flexDirection: 'row',
-  },
-  segmentBtn: { flex: 1 },
-  segmentInner: { paddingVertical: 10, borderRadius: 2, alignItems: 'center' },
-  segmentInnerActive: { backgroundColor: COLORS.purple },
-  segmentText: { fontSize: 13, fontWeight: '700', color: COLORS.grayLight },
-  segmentTextActive: { color: COLORS.white },
-
-  progressSummary: {
-    backgroundColor: COLORS.white,
-    borderRadius: 2,
-    padding: 17,
-    marginBottom: 10,
-  },
-  progressTitle: { fontSize: 14.5, fontWeight: '800', color: COLORS.navy },
-  progressSub: { fontSize: 12, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
-
-  papersList: { backgroundColor: COLORS.white, borderRadius: 2, overflow: 'hidden' },
-  papersIntro: { marginBottom: 12, paddingHorizontal: 2 },
-  yearItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayBorder,
-  },
-  yearBadge: {
-    width: 52,
-    height: 44,
-    borderRadius: 2,
-    backgroundColor: COLORS.purpleSoft,
+    borderColor: COLORS.grayBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  yearBadgeLocked: { backgroundColor: COLORS.grayBorder },
-  yearBadgeText: { fontSize: 14, fontWeight: '800', color: COLORS.purple700 },
-  yearBadgeTextLocked: { color: COLORS.gray },
-  resumeTag: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.goldDeep,
-    backgroundColor: COLORS.goldSoft,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  freeTag: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.green,
-    backgroundColor: COLORS.greenSoft,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  yearItemLast: { borderBottomWidth: 0 },
-  yearTitle: { fontSize: 14.5, fontWeight: '800', color: COLORS.navy },
-  yearMeta: { fontSize: 12, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
+  pageTitle: { fontSize: 28, fontWeight: '700', color: COLORS.navy, letterSpacing: -0.5 },
+  pageSub: { fontSize: 14, color: COLORS.gray, marginTop: 3 },
+
+  analytics: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 32 },
+  emptyText: { fontSize: 15, color: COLORS.gray, textAlign: 'center' },
+
 });

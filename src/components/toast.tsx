@@ -4,6 +4,8 @@ import { StyleSheet, Text } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { playSound } from '@/lib/sounds';
+
 export type ToastType = 'success' | 'error';
 
 export type ToastData = { message: string; type: ToastType };
@@ -17,6 +19,7 @@ type Props = {
 export function Toast({ toast, onHide, duration = 2800 }: Props) {
   useEffect(() => {
     if (!toast) return;
+    playSound(toast.type === 'error' ? 'error' : 'correct');
     const id = setTimeout(onHide, duration);
     return () => clearTimeout(id);
   }, [toast, duration, onHide]);
@@ -53,16 +56,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 2,
+    borderRadius: 8,
     maxWidth: '90%',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
   },
-  success: { backgroundColor: '#1F8A46' },
-  error: { backgroundColor: '#E53935' },
+  success: { backgroundColor: '#111111' },
+  error: { backgroundColor: '#111111' },
   icon: { marginRight: 8 },
   text: { color: '#fff', fontSize: 13, fontWeight: '600', flexShrink: 1 },
 });

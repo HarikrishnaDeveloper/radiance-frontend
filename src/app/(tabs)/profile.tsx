@@ -1,14 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { api } from '@/lib/api-client';
-import type { AttemptHistoryItem, DashboardResponse } from '@/types/api';
+import { playSound, setSoundsEnabled, useSoundsEnabled } from '@/lib/sounds';
+import type { DashboardResponse } from '@/types/api';
+import { Button } from '@/components/ui/button';
+import { dialog, DialogTitle, dialogStyles } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
 
 function initials(name: string | null | undefined, username: string | null | undefined) {
   const source = (name ?? username ?? '').trim();
@@ -17,10 +21,16 @@ function initials(name: string | null | undefined, username: string | null | und
   return parts.length > 1 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : source.slice(0, 2).toUpperCase();
 }
 
+const EXAM_LABELS: Record<string, string> = { UPSC_CSE: 'UPSC CSE', GROUP_1: 'Group 1', OTHER: 'Other' };
+const FOCUS_LABELS: Record<string, string> = { GS: 'GS', CSAT: 'CSAT', BOTH: 'Both (GS & CSAT)' };
+
+const examLabel = (exam: string | null | undefined) => (exam ? (EXAM_LABELS[exam] ?? null) : null);
+const focusLabel = (focus: string | null | undefined) => (focus ? (FOCUS_LABELS[focus] ?? null) : null);
+
 export default function ProfileScreen() {
   const { token, user, logout, completeProfile } = useAuth();
+  const soundsOn = useSoundsEnabled();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
-  const [history, setHistory] = useState<AttemptHistoryItem[]>([]);
 
   const [editVisible, setEditVisible] = useState(false);
   const [editName, setEditName] = useState('');
@@ -31,9 +41,11 @@ export default function ProfileScreen() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const [dashboardRes, historyRes] = await Promise.all([api.dashboard(token), api.attemptHistory(token, true)]);
-    setDashboard(dashboardRes);
-    setHistory(historyRes);
+    try {
+      setDashboard(await api.dashboard(token));
+    } catch {
+      // Stats show "–" until the dashboard loads.
+    }
   }, [token]);
 
   useFocusEffect(
@@ -77,24 +89,24 @@ export default function ProfileScreen() {
     {
       icon: 'school-outline' as const,
       label: 'Target Exam',
-      value: user?.profile?.targetExam === 'GROUP_1' ? 'Group 1' : user?.profile?.targetExam === 'OTHER' ? 'Other' : 'UPSC CSE',
+      value: examLabel(user?.profile?.targetExam),
     },
     {
       icon: 'stats-chart-outline' as const,
       label: 'Preparation Level',
-      value: user?.profile?.preparationLevel ? user.profile.preparationLevel.charAt(0) + user.profile.preparationLevel.slice(1).toLowerCase() : 'Beginner',
+      value: user?.profile?.preparationLevel ? user.profile.preparationLevel.charAt(0) + user.profile.preparationLevel.slice(1).toLowerCase() : null,
     },
     {
       icon: 'calendar-outline' as const,
       label: 'Target Attempt',
-      value: user?.profile?.targetAttempt ?? 'Not decided',
+      value: user?.profile?.targetAttempt ?? null,
     },
     {
       icon: 'compass-outline' as const,
       label: 'Preparation Focus',
-      value: user?.profile?.preparationFocus === 'GS' ? 'GS' : user?.profile?.preparationFocus === 'CSAT' ? 'CSAT' : 'Both (GS & CSAT)',
+      value: focusLabel(user?.profile?.preparationFocus),
     },
-  ];
+  ].filter((row) => row.value);
 
   const infoRows = [
     { icon: 'at-outline' as const, label: 'Username', value: user?.username },
@@ -108,12 +120,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <SafeAreaView edges={['top']}>
-            <View style={styles.headerTop}>
-              <Text style={styles.pageTitle}>Profile</Text>
-              <Pressable style={styles.iconPill} onPress={openEdit}>
-                <Ionicons name="settings-outline" size={17} color={COLORS.white} />
-              </Pressable>
-            </View>
+            <Text style={styles.pageTitle}>Profile</Text>
           </SafeAreaView>
         </View>
 
@@ -122,18 +129,25 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{initials(user?.profile?.fullName ?? user?.name, user?.username)}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.profile?.fullName ?? user?.name ?? user?.username}</Text>
-            <View style={styles.goalChip}>
-              <Ionicons name="school" size={12} color={COLORS.purple} />
-              <Text style={styles.goalChipText}>
-                {user?.profile?.targetExam === 'GROUP_1' ? 'Group 1' : user?.profile?.targetExam === 'OTHER' ? 'Other' : 'UPSC CSE'}
-                {user?.profile?.targetAttempt ? ` • ${user.profile.targetAttempt}` : ''}
-              </Text>
-            </View>
+            <Text style={styles.profileName} numberOfLines={2}>{user?.profile?.fullName ?? user?.name ?? user?.username}</Text>
+            {examLabel(user?.profile?.targetExam) && (
+              <View style={styles.goalChip}>
+                <Ionicons name="school" size={12} color={COLORS.purple} />
+                <Text style={styles.goalChipText}>
+                  {examLabel(user?.profile?.targetExam)}
+                  {user?.profile?.targetAttempt ? ` • ${user.profile.targetAttempt}` : ''}
+                </Text>
+              </View>
+            )}
+            <Pressable
+              onPress={openEdit}
+              style={({ pressed }) => [styles.editBtn, pressed && { backgroundColor: COLORS.purpleSoft }]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile">
+              <Ionicons name="create-outline" size={15} color={COLORS.purple} />
+              <Text style={styles.editBtnText}>Edit profile</Text>
+            </Pressable>
           </View>
-          <Pressable style={styles.editBtn} onPress={openEdit}>
-            <Ionicons name="create-outline" size={16} color={COLORS.gray} />
-          </Pressable>
         </View>
 
         <View style={styles.statStrip}>
@@ -160,7 +174,7 @@ export default function ProfileScreen() {
                   <Ionicons name={row.icon} size={18} color={COLORS.purple} />
                 </View>
                 <Text style={styles.menuLabel}>{row.label}</Text>
-                <Text style={styles.menuValue}>{row.value}</Text>
+                <Text style={styles.menuValue} numberOfLines={1}>{row.value}</Text>
               </View>
             ))}
           </View>
@@ -175,7 +189,7 @@ export default function ProfileScreen() {
                   <Ionicons name={row.icon} size={18} color={COLORS.purple} />
                 </View>
                 <Text style={styles.menuLabel}>{row.label}</Text>
-                <Text style={styles.menuValue}>{row.value}</Text>
+                <Text style={styles.menuValue} numberOfLines={1}>{row.value}</Text>
               </View>
             ))}
             {infoRows.length === 0 && <Text style={styles.emptyText}>No account details yet.</Text>}
@@ -183,79 +197,89 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Attempt History</Text>
+          <Text style={styles.sectionTitle}>Preferences</Text>
           <View style={styles.menuCard}>
-            {history.length === 0 && <Text style={styles.emptyText}>No completed attempts yet.</Text>}
-            {history.map((attempt, i) => (
-              <Pressable key={attempt.id} onPress={() => router.push(attempt.mode === 'FULL_PAPER' ? `/test/${attempt.id}/results` : `/results/${attempt.id}`)}>
-                <View style={[styles.menuRow, i === history.length - 1 && styles.menuRowLast]}>
-                  <View style={[styles.menuIcon, { backgroundColor: COLORS.greenSoft }]}>
-                    <Ionicons name="document-text-outline" size={18} color={COLORS.green} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.menuLabel}>{attempt.title}</Text>
-                    <Text style={styles.menuSub}>
-                      {attempt.correctCount} / {attempt.totalQuestions} correct
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.grayLight} />
-                </View>
-              </Pressable>
-            ))}
+            <View style={[styles.menuRow, styles.menuRowLast]}>
+              <View style={[styles.menuIcon, { backgroundColor: COLORS.purpleSoft }]}>
+                <Ionicons name={soundsOn ? 'volume-high-outline' : 'volume-mute-outline'} size={18} color={COLORS.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuLabel}>Sound effects</Text>
+                <Text style={styles.menuSub}>Taps, answers and alerts</Text>
+              </View>
+              <Switch
+                value={soundsOn}
+                onValueChange={(on) => {
+                  setSoundsEnabled(on);
+                  // A quick preview so turning sounds on is audible straight away.
+                  if (on) playSound('correct');
+                }}
+                trackColor={{ true: COLORS.purple, false: COLORS.grayBorder }}
+                thumbColor={COLORS.white}
+                ios_backgroundColor={COLORS.grayBorder}
+                accessibilityLabel="Sound effects"
+              />
+            </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Pressable onPress={() => logout()} style={styles.logoutBtn}>
+          <Pressable
+            onPress={() =>
+              dialog.alert('Log out?', 'You can log back in any time with your phone number.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Log out', style: 'destructive', onPress: () => logout() },
+              ])
+            }
+            style={styles.logoutBtn}>
             <Ionicons name="log-out-outline" size={16} color={COLORS.error} />
-            <Text style={styles.logoutText}>Log Out</Text>
+            <Text style={styles.logoutText}>Log out</Text>
           </Pressable>
-          <Text style={styles.versionText}>Radiance · Version {Constants.expoConfig?.version ?? '1.0.0'}</Text>
+          {Constants.expoConfig?.version && <Text style={styles.versionText}>Radiance · Version {Constants.expoConfig.version}</Text>}
         </View>
 
         <View style={{ height: 32 }} />
       </ScrollView>
 
       <Modal visible={editVisible} transparent animationType="fade" onRequestClose={() => setEditVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
+        {/* Keeps the form above the keyboard and scrollable on short phones. */}
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled" bounces={false}>
+            <View style={styles.modalCard}>
+              <DialogTitle>Edit profile</DialogTitle>
 
-            <Text style={styles.fieldLabel}>Name</Text>
-            <TextInput value={editName} onChangeText={setEditName} style={styles.input} placeholder="Your name" placeholderTextColor={COLORS.grayLight} />
+              <Text style={styles.fieldLabel}>Name</Text>
+              <TextInput value={editName} onChangeText={setEditName} style={styles.input} placeholder="Your name" placeholderTextColor={COLORS.grayLight} />
 
-            <Text style={styles.fieldLabel}>Email</Text>
-            <TextInput
-              value={editEmail}
-              onChangeText={setEditEmail}
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor={COLORS.grayLight}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+              <Text style={styles.fieldLabel}>Email</Text>
+              <TextInput
+                value={editEmail}
+                onChangeText={setEditEmail}
+                style={styles.input}
+                placeholder="you@example.com"
+                placeholderTextColor={COLORS.grayLight}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
 
-            <Text style={styles.fieldLabel}>State</Text>
-            <TextInput
-              value={editState}
-              onChangeText={setEditState}
-              style={styles.input}
-              placeholder="Your state"
-              placeholderTextColor={COLORS.grayLight}
-            />
+              <Text style={styles.fieldLabel}>State</Text>
+              <TextInput
+                value={editState}
+                onChangeText={setEditState}
+                style={styles.input}
+                placeholder="Your state"
+                placeholderTextColor={COLORS.grayLight}
+              />
 
-            {editError && <Text style={styles.modalError}>{editError}</Text>}
+              {editError && <Text style={styles.modalError}>{editError}</Text>}
 
-            <View style={styles.modalActions}>
-              <Pressable style={styles.modalCancel} onPress={() => setEditVisible(false)} disabled={saving}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.modalSave} onPress={saveEdit} disabled={saving}>
-                {saving ? <ActivityIndicator color={COLORS.white} size="small" /> : <Text style={styles.modalSaveText}>Save</Text>}
-              </Pressable>
+              <View style={dialogStyles.actions}>
+                <Button label="Cancel" variant="secondary" onPress={() => setEditVisible(false)} disabled={saving} style={dialogStyles.action} />
+                <Button label="Save" onPress={saveEdit} loading={saving} style={dialogStyles.action} />
+              </View>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -265,23 +289,27 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.loginBg },
   scrollContent: { flexGrow: 1 },
 
-  header: { backgroundColor: COLORS.purple700, paddingHorizontal: 22, paddingBottom: 46, paddingTop: 6 },
+  header: { backgroundColor: COLORS.white, paddingHorizontal: 22, paddingBottom: 4, paddingTop: 12 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pageTitle: { fontSize: 19, fontWeight: '800', color: COLORS.white },
+  pageTitle: { fontSize: 28, fontWeight: '700', color: COLORS.navy, letterSpacing: -0.5 },
   iconPill: {
     width: 38,
     height: 38,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   profileCard: {
-    marginTop: -40,
+    marginTop: 12,
     marginHorizontal: 22,
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
+    borderRadius: 8,
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,14 +318,14 @@ const styles = StyleSheet.create({
   avatar: {
     width: 66,
     height: 66,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: COLORS.purple,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: COLORS.white, fontSize: 22, fontWeight: '800' },
+  avatarText: { color: COLORS.white, fontSize: 22, fontWeight: '700' },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 17, fontWeight: '800', color: COLORS.navy },
+  profileName: { fontSize: 17, fontWeight: '700', color: COLORS.navy },
   goalChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -307,35 +335,42 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.purpleSoft,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 2,
+    borderRadius: 8,
   },
   goalChipText: { fontSize: 11.5, fontWeight: '700', color: COLORS.purple },
   editBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 2,
-    backgroundColor: COLORS.loginBg,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.purple,
   },
+  editBtnText: { fontSize: 13.5, fontWeight: '600', color: COLORS.purple },
 
   statStrip: {
-    marginTop: 14,
+    marginTop: 12,
     marginHorizontal: 22,
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
+    borderRadius: 8,
     flexDirection: 'row',
     paddingVertical: 16,
   },
   statItem: { flex: 1, alignItems: 'center' },
   statDivider: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: COLORS.grayBorder },
-  statVal: { fontSize: 16.5, fontWeight: '800', color: COLORS.navy },
+  statVal: { fontSize: 16.5, fontWeight: '700', color: COLORS.navy },
   statLabel: { fontSize: 11, color: COLORS.grayLight, fontWeight: '600', marginTop: 3 },
 
   section: { paddingHorizontal: 22, paddingTop: 22 },
-  sectionTitle: { fontSize: 16.5, fontWeight: '800', color: COLORS.navy, marginBottom: 14 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.navy, marginBottom: 12 },
 
-  menuCard: { backgroundColor: COLORS.white, borderRadius: 2, overflow: 'hidden' },
+  menuCard: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.grayBorder, borderRadius: 8, overflow: 'hidden' },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -345,9 +380,9 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.grayBorder,
   },
   menuRowLast: { borderBottomWidth: 0 },
-  menuIcon: { width: 38, height: 38, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
+  menuIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   menuLabel: { fontSize: 14, fontWeight: '700', color: COLORS.navy, flex: 1 },
-  menuValue: { fontSize: 13, fontWeight: '600', color: COLORS.gray },
+  menuValue: { flexShrink: 1, maxWidth: '55%', fontSize: 13, fontWeight: '600', color: COLORS.gray, textAlign: 'right' },
   menuSub: { fontSize: 12, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
   emptyText: { textAlign: 'center', color: COLORS.grayLight, padding: 16 },
 
@@ -357,29 +392,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
+    borderRadius: 8,
     padding: 15,
   },
-  logoutText: { color: COLORS.error, fontSize: 14, fontWeight: '800' },
+  logoutText: { color: COLORS.error, fontSize: 14, fontWeight: '700' },
   versionText: { textAlign: 'center', fontSize: 11.5, color: COLORS.grayLight, fontWeight: '500', marginTop: 14 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(21,43,92,0.45)', justifyContent: 'center', padding: 24 },
-  modalCard: { backgroundColor: COLORS.white, borderRadius: 2, padding: 22 },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: COLORS.navy, marginBottom: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalScroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  // Same card as components/ui/dialog so every popup matches.
+  modalCard: { width: '100%', maxWidth: 400, alignSelf: 'center', backgroundColor: COLORS.white, borderRadius: 14, padding: 22 },
   fieldLabel: { fontSize: 12.5, fontWeight: '700', color: COLORS.gray, marginBottom: 6, marginTop: 12 },
   input: {
     borderWidth: 1.5,
     borderColor: COLORS.grayBorder,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
     color: COLORS.navy,
   },
   modalError: { color: COLORS.error, fontSize: 12.5, fontWeight: '600', marginTop: 12 },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 22 },
-  modalCancel: { flex: 1, paddingVertical: 13, alignItems: 'center', borderRadius: 2, backgroundColor: COLORS.loginBg },
-  modalCancelText: { color: COLORS.gray, fontWeight: '700' },
-  modalSave: { flex: 1, paddingVertical: 13, alignItems: 'center', borderRadius: 2, backgroundColor: COLORS.purple },
-  modalSaveText: { color: COLORS.white, fontWeight: '700' },
 });

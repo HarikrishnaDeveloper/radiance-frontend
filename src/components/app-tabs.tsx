@@ -1,9 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '@/constants/colors';
 
 export default function AppTabs() {
+  // A fixed tabBarStyle height stops React Navigation adding the bottom inset
+  // itself, so add it here or the tabs sit under the gesture/nav bar.
+  const { bottom } = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -14,8 +19,8 @@ export default function AppTabs() {
           borderTopWidth: 1,
           borderTopColor: COLORS.grayBorder,
           backgroundColor: COLORS.white,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + bottom,
+          paddingBottom: 8 + bottom,
           paddingTop: 6,
         },
       }}>
@@ -47,11 +52,11 @@ export default function AppTabs() {
         }}
       />
       <Tabs.Screen
-        name="progress"
+        name="leaderboard"
         options={{
-          title: 'Progress',
+          title: 'Leaderboard',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color} />
           ),
         }}
       />

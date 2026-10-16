@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +20,7 @@ import { COLORS } from './colors';
 import { Toast } from '../toast';
 import { loginStyles as styles } from './login-styles';
 import { useErrorToast } from '@/hooks/use-error-toast';
+import { Pressable } from '@/components/ui/pressable';
 
 const INDIAN_STATES = [
   'Andhra Pradesh',

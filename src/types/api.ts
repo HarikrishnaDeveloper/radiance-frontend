@@ -189,12 +189,65 @@ export type ContinueLearning =
     };
 
 export type UserStats = {
+  /** correct ÷ (correct + incorrect) × 100 */
   accuracy: number;
   questionsSolved: number;
-  paperTestsCompleted?: number;
+  /** Completed stages ÷ published stages × 100 */
+  syllabusCoverage: number;
+  /** Completed whole-paper tests */
+  paperTestsCompleted: number;
 };
 
-export type WeakArea = { categoryId: number; name: string; answered: number; accuracy: number };
+export type CategoryScore = { categoryId: number; name: string; answered: number; correct: number; accuracy: number };
+
+export type CategoryPerformance = {
+  strong: CategoryScore[];
+  weak: CategoryScore[];
+  ratedCategories: number;
+  minAnswersToRate: number;
+};
+
+export type StudyGoalType = 'STAGES' | 'QUESTIONS' | 'DAILY_CHALLENGE' | 'FULL_TEST';
+
+export type StudyTaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+
+export type StudyTask = { type: StudyGoalType; target: number; progress: number; status: StudyTaskStatus };
+
+/** One day's tasks; `date` is a UTC YYYY-MM-DD. */
+export type StudyDay = { date: string; tasks: StudyTask[]; completed: number; total: number };
+
+export type StudyGoal = { type: StudyGoalType; target: number };
+
+export type StudyPlanResponse = {
+  goals: StudyGoal[];
+  limits: Record<StudyGoalType, { min: number; max: number }>;
+  today: StudyDay;
+  /** Earlier days, most recent first. */
+  history: StudyDay[];
+};
+
+export type LeaderboardEntry = {
+  rank: number;
+  userId: string;
+  name: string;
+  scorePercent: number;
+  papersAttempted: number;
+  isMe: boolean;
+};
+
+export type LeaderboardResponse = {
+  top: LeaderboardEntry[];
+  me: LeaderboardEntry | null;
+  totalRanked: number;
+};
+
+export type AppNotification = {
+  id: string;
+  kind: 'reminder' | 'update';
+  title: string;
+  body: string;
+  route: string;
+};
 
 export type TodaysFocus = {
   answeredToday: boolean;
@@ -202,10 +255,14 @@ export type TodaysFocus = {
 };
 
 export type DashboardResponse = {
+  student: { name: string; targetExam: string | null; targetAttempt: string | null };
   streak: number;
   longestStreak: number;
   stats: UserStats;
-  weakAreas?: WeakArea[];
+  dailyGoal: StudyDay;
+  categoryPerformance: CategoryPerformance;
+  leaderboard: LeaderboardResponse;
+  notifications: AppNotification[];
   recentActivity: boolean[];
   todaysFocus: TodaysFocus;
   continueAttempt: ContinueAttempt | null;

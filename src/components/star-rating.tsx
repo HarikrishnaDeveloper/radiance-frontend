@@ -15,7 +15,7 @@ export function StarRating({ count, size = 16, max = 3 }: Props) {
           key={i}
           name={i < count ? 'star' : 'star-outline'}
           size={size}
-          color="#F5A623"
+          color={i < count ? '#8103FB' : '#C9C9C9'}
         />
       ))}
     </View>

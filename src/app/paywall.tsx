@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,6 +9,9 @@ import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { ApiError, api } from '@/lib/api-client';
 import type { SubscriptionStatusResponse } from '@/types/api';
+import { dialog } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
+import { playSound } from '@/lib/sounds';
 
 const PERKS = [
   'Unlimited stages across every subject',
@@ -58,7 +60,8 @@ export default function PaywallScreen() {
         razorpay_signature: result.razorpay_signature!,
       });
       await refreshUser();
-      Alert.alert('You’re subscribed!', 'Enjoy unlimited access to every stage.', [
+      playSound('success');
+      dialog.alert('You’re subscribed!', 'Enjoy unlimited access to every stage.', [
         { text: 'Continue', onPress: () => router.back() },
       ]);
     } catch (e) {
@@ -66,9 +69,9 @@ export default function PaywallScreen() {
       // cancels the sheet — that's not a real error, so stay quiet for it.
       const description = (e as { description?: string })?.description;
       if (description) {
-        Alert.alert('Payment not completed', description);
+        dialog.error('Payment not completed', description);
       } else if (e instanceof ApiError) {
-        Alert.alert('Something went wrong', e.message);
+        dialog.error('Something went wrong', e.message);
       }
     } finally {
       setBusy(false);
@@ -77,7 +80,7 @@ export default function PaywallScreen() {
 
   async function handleCancel() {
     if (!token || busy) return;
-    Alert.alert('Cancel subscription?', 'You’ll lose access to gated stages immediately.', [
+    dialog.alert('Cancel subscription?', 'You’ll lose access to gated stages immediately.', [
       { text: 'Keep subscription', style: 'cancel' },
       {
         text: 'Cancel subscription',
@@ -88,7 +91,7 @@ export default function PaywallScreen() {
             await api.cancelSubscription(token);
             await refreshUser();
           } catch (e) {
-            Alert.alert('Could not cancel', e instanceof ApiError ? e.message : 'Try again in a moment.');
+            dialog.error('Could not cancel', e instanceof ApiError ? e.message : 'Try again in a moment.');
           } finally {
             setBusy(false);
           }
@@ -99,74 +102,78 @@ export default function PaywallScreen() {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <Pressable onPress={() => router.back()} style={styles.closeBtn} hitSlop={10}>
-          <Ionicons name="close" size={20} color={COLORS.gray} />
-        </Pressable>
+      {/* Scrolls on short phones so the subscribe button is never cut off. */}
+      <ScrollView contentContainerStyle={styles.scrollContent} bounces={false} showsVerticalScrollIndicator={false}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+          <Pressable onPress={() => router.back()} style={styles.closeBtn} hitSlop={10}>
+            <Ionicons name="close" size={20} color={COLORS.gray} />
+          </Pressable>
 
-        <View style={styles.hero}>
-          <View style={styles.heroBadge}>
-            <Ionicons name="rocket" size={28} color={COLORS.purple} />
-          </View>
-          <Text style={styles.title}>{isActive ? 'You’re on Premium' : 'Unlock Full Access'}</Text>
-          <Text style={styles.subtitle}>
-            {isActive
-              ? 'Your subscription renews automatically every month.'
-              : `Your first ${status?.freeStageLimit ?? 2} stages are free. Subscribe to keep going.`}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          {!isActive && (
-            <View style={styles.priceRow}>
-              <Text style={styles.price}>{formatRupees(status?.monthlyAmountPaise ?? 3000)}</Text>
-              <Text style={styles.pricePeriod}>/ month</Text>
+          <View style={styles.hero}>
+            <View style={styles.heroBadge}>
+              <Ionicons name="lock-open-outline" size={26} color={COLORS.purple} />
             </View>
-          )}
-
-          {PERKS.map((perk) => (
-            <View key={perk} style={styles.perkRow}>
-              <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
-              <Text style={styles.perkText}>{perk}</Text>
-            </View>
-          ))}
-
-          {status?.subscription?.currentEnd && isActive && (
-            <Text style={styles.renewalNote}>
-              Next renewal: {new Date(status.subscription.currentEnd).toLocaleDateString()}
+            <Text style={styles.title}>{isActive ? 'You’re on Premium' : 'Unlock full access'}</Text>
+            <Text style={styles.subtitle}>
+              {isActive
+                ? 'Your subscription renews automatically every month.'
+                : status
+                ? `Your first ${status.freeStageLimit} stages are free. Subscribe to keep going.`
+                : ''}
             </Text>
-          )}
-        </View>
+          </View>
 
-        <View style={styles.actions}>
-          {isActive ? (
-            <Pressable onPress={handleCancel} disabled={busy} style={styles.secondaryBtn}>
-              {busy ? <ActivityIndicator color={COLORS.error} /> : <Text style={styles.secondaryBtnText}>Cancel Subscription</Text>}
-            </Pressable>
-          ) : (
-            <Pressable onPress={handleSubscribe} disabled={busy}>
-              <LinearGradient
-                colors={[COLORS.purple, COLORS.purpleDark]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.primaryBtn}>
-                {busy ? (
-                  <ActivityIndicator color={COLORS.white} />
-                ) : (
-                  <Text style={styles.primaryBtnText}>Subscribe — {formatRupees(status?.monthlyAmountPaise ?? 3000)}/mo</Text>
-                )}
-              </LinearGradient>
-            </Pressable>
-          )}
-        </View>
-      </SafeAreaView>
+          <View style={styles.card}>
+            {!isActive && status && (
+              <View style={styles.priceRow}>
+                <Text style={styles.price}>{formatRupees(status.monthlyAmountPaise)}</Text>
+                <Text style={styles.pricePeriod}>/ month</Text>
+              </View>
+            )}
+
+            {PERKS.map((perk) => (
+              <View key={perk} style={styles.perkRow}>
+                <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />
+                <Text style={styles.perkText}>{perk}</Text>
+              </View>
+            ))}
+
+            {status?.subscription?.currentEnd && isActive && (
+              <Text style={styles.renewalNote}>
+                Next renewal: {new Date(status.subscription.currentEnd).toLocaleDateString()}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.actions}>
+            {isActive ? (
+              <Pressable onPress={handleCancel} disabled={busy} style={styles.secondaryBtn}>
+                {busy ? <ActivityIndicator color={COLORS.error} /> : <Text style={styles.secondaryBtnText}>Cancel Subscription</Text>}
+              </Pressable>
+            ) : (
+              <Pressable onPress={handleSubscribe} disabled={busy || !status}>
+                <View style={[styles.primaryBtn, { backgroundColor: COLORS.purple }]}>
+                  {busy ? (
+                    <ActivityIndicator color={COLORS.white} />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>
+                    {status ? `Subscribe — ${formatRupees(status.monthlyAmountPaise)}/mo` : 'Subscribe'}
+                  </Text>
+                  )}
+                </View>
+              </Pressable>
+            )}
+          </View>
+        </SafeAreaView>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.loginBg },
-  safeArea: { flex: 1, paddingHorizontal: 24 },
+  scrollContent: { flexGrow: 1 },
+  safeArea: { flex: 1, paddingHorizontal: 24, width: '100%', maxWidth: 520, alignSelf: 'center' },
   closeBtn: {
     width: 36,
     height: 36,
@@ -185,33 +192,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: COLORS.navy, marginTop: 16, textAlign: 'center' },
+  title: { fontSize: 24, fontWeight: '700', color: COLORS.navy, marginTop: 16, textAlign: 'center' },
   subtitle: { fontSize: 14, color: COLORS.gray, marginTop: 8, textAlign: 'center', lineHeight: 20, paddingHorizontal: 12 },
 
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 20,
     marginTop: 28,
     gap: 14,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
   },
   priceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, marginBottom: 4 },
-  price: { fontSize: 34, fontWeight: '800', color: COLORS.navy },
+  price: { fontSize: 34, fontWeight: '700', color: COLORS.navy },
   pricePeriod: { fontSize: 14, color: COLORS.gray, marginBottom: 6 },
   perkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   perkText: { fontSize: 14, color: COLORS.navy, fontWeight: '500', flex: 1 },
   renewalNote: { fontSize: 12.5, color: COLORS.grayLight, marginTop: 4 },
 
-  actions: { marginTop: 'auto', paddingBottom: 20, gap: 10 },
+  actions: { marginTop: 'auto', paddingTop: 24, paddingBottom: 20, gap: 10 },
   primaryBtn: {
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.white },
+  primaryBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
   secondaryBtn: {
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 17,
     alignItems: 'center',
     justifyContent: 'center',

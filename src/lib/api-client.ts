@@ -13,6 +13,7 @@ import type {
   DailyChallengeResponse,
   DailyChallengeSubmitResponse,
   DashboardResponse,
+  LeaderboardResponse,
   PaperAttemptDetailResponse,
   PaperDetailResponse,
   PaperResultsResponse,
@@ -22,6 +23,8 @@ import type {
   StageResultsResponse,
   StageSubmitResponse,
   StreakResponse,
+  StudyGoal,
+  StudyPlanResponse,
   SubmitAnswerResponse,
   AttemptResultsResponse,
   SubscriptionStatusResponse,
@@ -61,7 +64,44 @@ export class ApiError extends Error {
   }
 }
 
+// Access tokens live 15 minutes. The auth context registers a handler that
+// swaps the refresh token for a new access token; request() calls it once on
+// a 401 and retries, so long sessions don't start failing mid-use.
+type UnauthorizedHandler = () => Promise<string | null>;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler;
+}
+
+// Concurrent 401s share one refresh — refresh tokens rotate, so a second
+// refresh with the old token would fail and log the user out.
+function refreshAccessToken(): Promise<string | null> {
+  if (!unauthorizedHandler) return Promise.resolve(null);
+  refreshInFlight ??= unauthorizedHandler()
+    .catch(() => null)
+    .finally(() => {
+      refreshInFlight = null;
+    });
+  return refreshInFlight;
+}
+
 async function request<T>(
+  path: string,
+  options: { method?: string; token?: string | null; body?: unknown } = {}
+): Promise<T> {
+  try {
+    return await send<T>(path, options);
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.status !== 401 || !options.token) throw e;
+    const fresh = await refreshAccessToken();
+    if (!fresh) throw e;
+    return send<T>(path, { ...options, token: fresh });
+  }
+}
+
+async function send<T>(
   path: string,
   options: { method?: string; token?: string | null; body?: unknown } = {}
 ): Promise<T> {
@@ -127,6 +167,8 @@ const CACHE_TTL = {
   streak: 30_000,
   dailyChallenge: 60_000,
   attempts: 30_000,
+  studyPlan: 30_000,
+  leaderboard: 60_000,
 } as const;
 
 // ─── Cache keys ─────────────────────────────────────────────────────────
@@ -140,6 +182,8 @@ const cacheKey = {
   attempts: (completed?: boolean) => `attempts:${completed}`,
   attempt: (id: number) => `attempt:${id}`,
   stageDetail: (id: number) => `stageDetail:${id}`,
+  studyPlan: 'studyPlan',
+  leaderboard: 'leaderboard',
 } as const;
 
 export const api = {
@@ -212,13 +256,16 @@ export const api = {
       onUpdate,
     ),
 
-  papers: (token: string, onUpdate?: (data: PaperSummary[]) => void) =>
-    fetchWithCache<PaperSummary[]>(
+  /** `force` skips the cache (pull-to-refresh). */
+  papers: (token: string, onUpdate?: (data: PaperSummary[]) => void, force = false) => {
+    if (force) invalidateCache(cacheKey.papers);
+    return fetchWithCache<PaperSummary[]>(
       cacheKey.papers,
       () => request<PaperSummary[]>('/api/papers', { token }),
       CACHE_TTL.papers,
       onUpdate,
-    ),
+    );
+  },
 
   attemptHistory: (token: string, completed?: boolean) =>
     fetchWithCache<AttemptHistoryItem[]>(
@@ -246,7 +293,30 @@ export const api = {
       onUpdate,
     ),
 
+  studyPlan: (token: string, onUpdate?: (data: StudyPlanResponse) => void) =>
+    fetchWithCache<StudyPlanResponse>(
+      cacheKey.studyPlan,
+      () => request<StudyPlanResponse>('/api/study-plan', { token }),
+      CACHE_TTL.studyPlan,
+      onUpdate,
+    ),
+
+  leaderboard: (token: string, onUpdate?: (data: LeaderboardResponse) => void) =>
+    fetchWithCache<LeaderboardResponse>(
+      cacheKey.leaderboard,
+      () => request<LeaderboardResponse>('/api/leaderboard?limit=50', { token }),
+      CACHE_TTL.leaderboard,
+      onUpdate,
+    ),
+
   // ─── Non-cached (mutations & one-off reads) ─────────────────────────
+
+  /** Replaces the recurring daily goals; today's tasks are regenerated server-side. */
+  saveStudyPlan: async (token: string, goals: StudyGoal[]) => {
+    const data = await request<StudyPlanResponse>('/api/study-plan', { method: 'PUT', token, body: { goals } });
+    invalidateCache(cacheKey.dashboard, cacheKey.studyPlan);
+    return data;
+  },
 
   createAttempt: (
     token: string,
@@ -265,7 +335,7 @@ export const api = {
 
   completeAttempt: (token: string, attemptId: number) => {
     // Invalidate caches that change after completing an attempt
-    invalidateCache(cacheKey.dashboard, cacheKey.streak);
+    invalidateCache(cacheKey.dashboard, cacheKey.streak, cacheKey.studyPlan);
     invalidateCacheByPrefix('attempts');
     return request<CompleteAttemptResponse>(`/api/attempts/${attemptId}/complete`, { method: 'POST', token });
   },
@@ -297,7 +367,7 @@ export const api = {
     }),
 
   submitPaperTest: (token: string, attemptId: number) => {
-    invalidateCache(cacheKey.dashboard, cacheKey.streak, cacheKey.papers);
+    invalidateCache(cacheKey.dashboard, cacheKey.streak, cacheKey.papers, cacheKey.studyPlan, cacheKey.leaderboard);
     invalidateCacheByPrefix('attempts');
     return request<CompleteAttemptResponse>(`/api/attempts/${attemptId}/complete`, { method: 'POST', token });
   },
@@ -321,7 +391,7 @@ export const api = {
     answers: { questionId: number; selectedOptionId: number | null }[]
   ) => {
     // Invalidate caches that change after submitting a stage
-    invalidateCache(cacheKey.dashboard, cacheKey.streak, cacheKey.categories);
+    invalidateCache(cacheKey.dashboard, cacheKey.streak, cacheKey.categories, cacheKey.studyPlan);
     invalidateCacheByPrefix('categoryDetail');
     return request<StageSubmitResponse>(`/api/stages/${stageId}/submit`, {
       method: 'POST',
@@ -344,7 +414,7 @@ export const api = {
     }),
 
   submitDailyChallenge: (token: string, answers: { questionId: number; selectedOptionId: number | null }[]) => {
-    invalidateCache(cacheKey.dashboard, cacheKey.dailyChallenge, cacheKey.streak);
+    invalidateCache(cacheKey.dashboard, cacheKey.dailyChallenge, cacheKey.streak, cacheKey.studyPlan);
     return request<DailyChallengeSubmitResponse>('/api/daily-challenge/submit', {
       method: 'POST',
       token,

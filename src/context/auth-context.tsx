@@ -1,8 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 
-import { api, ApiError } from '@/lib/api-client';
+import { api, ApiError, setUnauthorizedHandler } from '@/lib/api-client';
 import type { AuthResponse, AuthUser } from '@/types/api';
 
 const ACCESS_TOKEN_KEY = 'radiance_access_token';
@@ -180,6 +180,42 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const me = await api.me(token);
     setUser(me);
   }, [token]);
+
+  // Lets the API client renew an expired access token mid-session (see
+  // setUnauthorizedHandler). A ref keeps the handler pointing at the latest
+  // refresh token without re-registering on every rotation.
+  const refreshTokenRef = useRef(refreshToken);
+  useEffect(() => {
+    refreshTokenRef.current = refreshToken;
+  }, [refreshToken]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(async () => {
+      const current = refreshTokenRef.current;
+      if (!current) return null;
+      try {
+        const rotated = await api.refresh(current);
+        await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, rotated.accessToken);
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, rotated.refreshToken);
+        refreshTokenRef.current = rotated.refreshToken;
+        setToken(rotated.accessToken);
+        setRefreshToken(rotated.refreshToken);
+        return rotated.accessToken;
+      } catch (e) {
+        // Refresh token expired or revoked: the session is over.
+        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+          api.clearAllCache();
+          await clearSession();
+          setToken(null);
+          setRefreshToken(null);
+          setUser(null);
+          setStatus('signedOut');
+        }
+        return null;
+      }
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   const logout = useCallback(async () => {
     if (refreshToken) {

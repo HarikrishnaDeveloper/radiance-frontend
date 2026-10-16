@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -7,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,11 +13,12 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Toast, type ToastData } from '@/components/toast';
 import { COLORS } from '@/constants/colors';
 import { ApiError, useAuth } from '@/context/auth-context';
+import { Pressable } from '@/components/ui/pressable';
 
 type TargetExam = 'UPSC_CSE' | 'GROUP_1' | 'OTHER';
 type PrepLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -66,6 +65,7 @@ function formatPhoneDisplay(raw?: string | null) {
 
 export default function ProfileSetupScreen() {
   const { user, completeProfile } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const attemptYears = useMemo(() => {
@@ -154,7 +154,7 @@ export default function ProfileSetupScreen() {
           <SafeAreaView style={styles.safeArea}>
             <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
               <View style={styles.iconCircle}>
-                <Ionicons name="sparkles" size={26} color={COLORS.purple} />
+                <Ionicons name="person-outline" size={26} color={COLORS.purple} />
               </View>
               <Text style={styles.title}>Complete Profile</Text>
               <Text style={styles.subtitle}>
@@ -361,17 +361,13 @@ export default function ProfileSetupScreen() {
                   styles.continueBtnWrapper,
                   pressed && styles.buttonPressed,
                 ]}>
-                <LinearGradient
-                  colors={[COLORS.purple, COLORS.purpleDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.continueBtn}>
+                <View style={[styles.continueBtn, { backgroundColor: COLORS.purple }]}>
                   {submitting ? (
                     <ActivityIndicator color={COLORS.white} size="small" />
                   ) : (
                     <Text style={styles.continueBtnText}>Continue</Text>
                   )}
-                </LinearGradient>
+                </View>
               </Pressable>
 
               <Text style={styles.footerNote}>You can update your profile anytime in settings</Text>
@@ -391,7 +387,7 @@ export default function ProfileSetupScreen() {
             style={styles.modalBackdrop}
             onPress={() => setExamModalVisible(false)}
           />
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { paddingBottom: 32 + insets.bottom }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Select Target Exam</Text>
@@ -449,7 +445,7 @@ export default function ProfileSetupScreen() {
             style={styles.modalBackdrop}
             onPress={() => setAttemptModalVisible(false)}
           />
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { paddingBottom: 32 + insets.bottom }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Select Target Attempt</Text>
@@ -534,7 +530,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.navy,
     letterSpacing: -0.4,
   },
@@ -583,14 +579,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: COLORS.grayBorder,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: COLORS.white,
     paddingHorizontal: 14,
     minHeight: 52,
   },
   readOnlyRow: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.grayBorder,
   },
   leadingIcon: {
     marginRight: 10,
@@ -615,7 +611,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.greenSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 2,
+    borderRadius: 8,
   },
   verifiedText: {
     fontSize: 12,
@@ -628,7 +624,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1.5,
     borderColor: COLORS.grayBorder,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: COLORS.white,
     paddingHorizontal: 14,
     minHeight: 52,
@@ -649,7 +645,7 @@ const styles = StyleSheet.create({
   levelCard: {
     borderWidth: 1.5,
     borderColor: COLORS.grayBorder,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: COLORS.white,
@@ -708,7 +704,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: COLORS.grayBorder,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 8,
     backgroundColor: COLORS.white,
@@ -728,16 +724,11 @@ const styles = StyleSheet.create({
   },
   continueBtnWrapper: {
     marginTop: 28,
-    borderRadius: 2,
-    shadowColor: COLORS.purple,
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    borderRadius: 8,
   },
   continueBtn: {
     height: 54,
-    borderRadius: 2,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -765,12 +756,12 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(21, 43, 92, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   modalSheet: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     paddingTop: 12,
     paddingBottom: 32,
     paddingHorizontal: 24,
@@ -779,7 +770,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 44,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: COLORS.grayBorder,
     alignSelf: 'center',
     marginBottom: 16,
@@ -815,7 +806,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 2,
+    borderRadius: 8,
   },
   modalOptionRowSelected: {
     backgroundColor: COLORS.purpleSoft,

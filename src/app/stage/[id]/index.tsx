@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StudyNotes } from '@/components/paper-test/study-notes';
 import { ProgressRing } from '@/components/progress-ring';
@@ -13,6 +12,9 @@ import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { ApiError, api } from '@/lib/api-client';
 import type { QuestionDifficulty, StageDetailResponse, StageSubmitResponse, StreakResponse, SubmitAnswerResponse } from '@/types/api';
+import { dialog } from '@/components/ui/dialog';
+import { Pressable } from '@/components/ui/pressable';
+import { playSound } from '@/lib/sounds';
 
 const STREAK_BONUS_THRESHOLD = 2;
 const QUESTION_TIME_SECONDS = 45;
@@ -103,6 +105,7 @@ const OptionButton = React.memo(function OptionButton({ option, isSelected, isCo
 export default function StageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [stage, setStage] = useState<StageDetailResponse | null>(null);
   const [answers, setAnswers] = useState<Map<number, AnswerRecord>>(new Map());
@@ -122,14 +125,15 @@ export default function StageScreen() {
       if (e instanceof ApiError && e.isSubscriptionRequired) {
         router.replace('/paywall');
       } else {
-        Alert.alert('Could not load stage', 'Please try again.', [{ text: 'OK', onPress: () => router.back() }]);
+        dialog.error('Could not load stage', 'Please try again.', [{ text: 'OK', onPress: () => router.back() }]);
       }
     });
   }, [token, id]);
 
   useEffect(() => {
     if (!token || !result) return;
-    api.streak(token).then(setStreak);
+    // Only feeds the optional streak card, so a failure just hides it.
+    api.streak(token).then(setStreak).catch(() => undefined);
   }, [token, result]);
 
   const currentQuestion = useMemo(
@@ -170,6 +174,7 @@ export default function StageScreen() {
     setSubmitting(true);
     try {
       const checked = await api.checkStageAnswer(token, stage.id, currentQuestion.id, selectedOptionId);
+      playSound(checked.isCorrect ? 'correct' : 'wrong');
       setFeedback(checked);
       setAnswers((prev) => new Map(prev).set(currentQuestion.id, { selectedOptionId, isCorrect: checked.isCorrect }));
     } finally {
@@ -180,6 +185,7 @@ export default function StageScreen() {
   async function finishStage(finalAnswers: Map<number, AnswerRecord>) {
     if (!token || !stage) return;
     setSubmitting(true);
+    playSound('submit');
     try {
       const payload = stage.questions.map((q) => ({
         questionId: q.id,
@@ -187,6 +193,7 @@ export default function StageScreen() {
       }));
       const submitResult = await api.submitStage(token, stage.id, payload);
       setElapsedSeconds(Math.round((Date.now() - startTime) / 1000));
+      playSound('success');
       setResult(submitResult);
     } finally {
       setSubmitting(false);
@@ -220,9 +227,9 @@ export default function StageScreen() {
   }
 
   function confirmExit() {
-    Alert.alert('Exit Stage?', 'Your progress so far is saved — you can resume this stage later.', [
+    dialog.alert('Exit stage?', 'Your progress so far is saved — you can resume this stage later.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Exit', style: 'destructive', onPress: () => router.back() },
+      { text: 'Exit', onPress: () => router.back() },
     ]);
   }
 
@@ -241,20 +248,19 @@ export default function StageScreen() {
     return (
       <View style={completeStyles.screen}>
         <ScrollView showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={[COLORS.purple700, COLORS.purple900]} style={completeStyles.celebrate}>
+          <View style={completeStyles.celebrate}>
             <SafeAreaView edges={['top']}>
               <View style={completeStyles.trophyWrap}>
                 <View style={completeStyles.trophyGlow}>
-                  <Ionicons name="trophy" size={48} color={COLORS.gold} />
+                  <Ionicons name="checkmark" size={30} color={COLORS.purple} />
                 </View>
                 <Text style={completeStyles.eyebrow}>
                   Stage {stage.stageNumber} · {stage.category.name}
                 </Text>
-                <Text style={completeStyles.celebrateTitle}>Quiz Complete!</Text>
-                <Text style={completeStyles.celebrateSub}>Great work — you&apos;re one step closer to your goal.</Text>
+                <Text style={completeStyles.celebrateTitle}>Stage complete</Text>
               </View>
             </SafeAreaView>
-          </LinearGradient>
+          </View>
 
           <View style={completeStyles.body}>
             <View style={completeStyles.scoreCard}>
@@ -279,14 +285,14 @@ export default function StageScreen() {
             <View style={completeStyles.statGrid}>
               <View style={completeStyles.statCard}>
                 <View style={[completeStyles.statIcon, { backgroundColor: COLORS.blueSoft }]}>
-                  <Ionicons name="time-outline" size={16} color={COLORS.blue} />
+                  <Ionicons name="time-outline" size={16} color={COLORS.purple} />
                 </View>
                 <Text style={completeStyles.statVal}>{formatElapsed(elapsedSeconds)}</Text>
                 <Text style={completeStyles.statLabel}>Time Taken</Text>
               </View>
               <View style={completeStyles.statCard}>
                 <View style={[completeStyles.statIcon, { backgroundColor: COLORS.goldSoft }]}>
-                  <Ionicons name="star" size={16} color={COLORS.goldDeep} />
+                  <Ionicons name="star-outline" size={16} color={COLORS.purple} />
                 </View>
                 <Text style={completeStyles.statVal}>{result.starsEarned}/3</Text>
                 <Text style={completeStyles.statLabel}>Stars</Text>
@@ -296,7 +302,7 @@ export default function StageScreen() {
             {showStreakBonus && (
               <View style={completeStyles.bonusCard}>
                 <View style={completeStyles.bonusIcon}>
-                  <Ionicons name="flame" size={19} color={COLORS.gold} />
+                  <Ionicons name="flame" size={19} color={COLORS.purple} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={completeStyles.bonusTitle}>{streak!.streak} Day Streak</Text>
@@ -319,9 +325,9 @@ export default function StageScreen() {
           </View>
         </ScrollView>
 
-        <View style={completeStyles.actions}>
+        <View style={[completeStyles.actions, { paddingBottom: 20 + insets.bottom }]}>
           {result.nextStageUnlocked && result.nextStageId ? (
-            <Pressable onPress={() => router.replace(`/stage/${result.nextStageId}`)} style={completeStyles.btnPrimary}>
+            <Pressable onPress={() => router.replace(`/stage/${result.nextStageId}`)} sound="open" style={completeStyles.btnPrimary}>
               <Text style={completeStyles.btnPrimaryText}>Continue to Stage {result.nextStageNumber}</Text>
               <Ionicons name="arrow-forward" size={15} color={COLORS.white} />
             </Pressable>
@@ -360,12 +366,7 @@ export default function StageScreen() {
             <Ionicons name="close" size={17} color={COLORS.gray} />
           </Pressable>
           <View style={styles.progressTrack}>
-            <LinearGradient
-              colors={[COLORS.purple400, COLORS.purple]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.progressFill, { width: `${progressPct}%` }]}
-            />
+            <View style={[styles.progressFill, { width: `${progressPct}%` }, { backgroundColor: COLORS.purple400 }]} />
           </View>
           <View style={styles.accuracyWrap}>
             <Stars filled={sessionStarCount(sessionPct)} />
@@ -383,7 +384,9 @@ export default function StageScreen() {
 
         <View style={styles.metaRow}>
           <View style={styles.metaLeft}>
-            <Text style={styles.subjectTag}>{currentQuestion.category.name}</Text>
+            <Text style={styles.subjectTag} numberOfLines={1}>
+              {currentQuestion.category.name}
+            </Text>
             {currentQuestion.questionPaper && (
               <Text style={styles.yearTag}>UPSC {currentQuestion.questionPaper.year}</Text>
             )}
@@ -434,7 +437,7 @@ export default function StageScreen() {
       </ScrollView>
 
       {!feedback && (
-        <View style={styles.bottomArea}>
+        <View style={[styles.bottomArea, { paddingBottom: 18 + insets.bottom }]}>
           {!submitting && (
             <Pressable onPress={skip} style={styles.skipLink}>
               <Text style={styles.skipLinkText}>Skip this question</Text>
@@ -450,13 +453,18 @@ export default function StageScreen() {
       )}
 
       {feedback && (
-        <View style={[styles.feedbackPanel, feedback.isCorrect ? styles.feedbackPanelCorrect : styles.feedbackPanelWrong]}>
+        <View
+          style={[
+            styles.feedbackPanel,
+            feedback.isCorrect ? styles.feedbackPanelCorrect : styles.feedbackPanelWrong,
+            { paddingBottom: 20 + insets.bottom },
+          ]}>
           <View style={styles.feedbackTop}>
             <View style={[styles.feedbackIcon, { backgroundColor: feedback.isCorrect ? COLORS.green : COLORS.error }]}>
               <Ionicons name={feedback.isCorrect ? 'checkmark' : 'close'} size={16} color={COLORS.white} />
             </View>
-            <Text style={[styles.feedbackTitle, { color: feedback.isCorrect ? '#158A50' : '#B93030' }]}>
-              {feedback.skipped ? 'Skipped — here is the answer' : feedback.isCorrect ? 'Correct!' : 'Not Quite'}
+            <Text style={[styles.feedbackTitle, { color: feedback.isCorrect ? COLORS.green : COLORS.error }]}>
+              {feedback.skipped ? 'Skipped — here is the answer' : feedback.isCorrect ? 'Correct' : 'Not quite'}
             </Text>
           </View>
           <Pressable onPress={goNext} disabled={submitting} style={styles.continueBtn}>
@@ -478,50 +486,50 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 34,
     height: 34,
-    borderRadius: 2,
+    borderRadius: 8,
     backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  progressTrack: { flex: 1, height: 9, borderRadius: 2, backgroundColor: COLORS.grayBorder, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
+  progressTrack: { flex: 1, height: 9, borderRadius: 8, backgroundColor: COLORS.grayBorder, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 8 },
   accuracyWrap: { alignItems: 'center', gap: 2 },
-  accuracyPct: { fontSize: 9, fontWeight: '800', color: COLORS.grayLight, letterSpacing: 0.2 },
-  timerText: { fontSize: 10, fontWeight: '800', color: COLORS.navy },
+  accuracyPct: { fontSize: 9, fontWeight: '700', color: COLORS.grayLight },
+  timerText: { fontSize: 10, fontWeight: '700', color: COLORS.navy },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  metaLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subjectTag: { fontSize: 11, fontWeight: '800', color: COLORS.purple, backgroundColor: COLORS.purpleSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 2 },
-  yearTag: { fontSize: 11, fontWeight: '700', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 2 },
+  metaLeft: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 8 },
+  subjectTag: { flexShrink: 1, fontSize: 11, fontWeight: '700', color: COLORS.purple, backgroundColor: COLORS.purpleSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
+  yearTag: { fontSize: 11, fontWeight: '700', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
   stageTag: { fontSize: 11.5, fontWeight: '600', color: COLORS.grayLight },
-  qCount: { fontSize: 11.5, fontWeight: '700', color: COLORS.grayLight },
+  qCount: { flexShrink: 0, fontSize: 11.5, fontWeight: '700', color: COLORS.grayLight },
 
   body: { flex: 1 },
   bodyContent: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 8 },
-  questionText: { fontSize: 19, fontWeight: '800', color: COLORS.navy, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
-  questionImage: { width: '100%', height: 200, borderRadius: 2, marginTop: 12 },
+  questionText: { fontSize: 19, fontWeight: '700', color: COLORS.navy, lineHeight: 27, letterSpacing: -0.2, marginTop: 12 },
+  questionImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 12 },
 
   options: { marginTop: 22, gap: 12 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 13, borderWidth: 2, borderRadius: 2, padding: 14 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 13, borderWidth: 2, borderRadius: 8, padding: 14 },
   optionDimmed: { opacity: 0.55 },
-  optionLetter: { width: 30, height: 30, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
-  optionLetterText: { fontSize: 13, fontWeight: '800' },
+  optionLetter: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  optionLetterText: { fontSize: 13, fontWeight: '700' },
   optionText: { flex: 1, fontSize: 14.5, fontWeight: '600', color: COLORS.navy },
 
   bottomArea: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18, gap: 8 },
   skipLink: { alignItems: 'center', paddingVertical: 4 },
   skipLinkText: { fontSize: 12.5, fontWeight: '600', color: COLORS.grayLight },
-  checkBtn: { backgroundColor: COLORS.grayLight, borderRadius: 2, paddingVertical: 16, alignItems: 'center' },
+  checkBtn: { backgroundColor: COLORS.grayLight, borderRadius: 8, paddingVertical: 16, alignItems: 'center' },
   checkBtnEnabled: { backgroundColor: COLORS.purple },
-  checkBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
+  checkBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
 
   feedbackPanel: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 20, borderTopWidth: 1, borderTopColor: COLORS.grayBorder },
   feedbackPanelCorrect: { backgroundColor: COLORS.greenSoft },
   feedbackPanelWrong: { backgroundColor: COLORS.errorBg },
   feedbackTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   feedbackIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  feedbackTitle: { fontSize: 15, fontWeight: '800' },
-  feedbackXp: { marginLeft: 'auto', fontSize: 12, fontWeight: '800', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 2 },
+  feedbackTitle: { fontSize: 15, fontWeight: '700' },
+  feedbackXp: { marginLeft: 'auto', fontSize: 12, fontWeight: '700', color: COLORS.goldDeep, backgroundColor: COLORS.goldSoft, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
   feedbackExplain: { fontSize: 12.5, color: COLORS.gray, fontWeight: '500', lineHeight: 18, marginTop: 6 },
 
   // ── Explanation & Revision cards ──
@@ -533,17 +541,15 @@ const styles = StyleSheet.create({
   },
   explanationLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.purple,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.4,
     marginBottom: 4,
   },
   revisionBox: {
     marginTop: 10,
     padding: 12,
     backgroundColor: COLORS.goldSoft,
-    borderRadius: 2,
+    borderRadius: 8,
   },
   revisionTitleRow: {
     flexDirection: 'row' as const,
@@ -553,10 +559,8 @@ const styles = StyleSheet.create({
   },
   revisionTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.goldDeep,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.3,
   },
   revisionText: {
     fontSize: 12.5,
@@ -565,57 +569,56 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  continueBtn: { marginTop: 14, backgroundColor: COLORS.purple, borderRadius: 2, paddingVertical: 16, alignItems: 'center' },
-  continueBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
+  continueBtn: { marginTop: 14, backgroundColor: COLORS.purple, borderRadius: 8, paddingVertical: 16, alignItems: 'center' },
+  continueBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
 });
 
 const completeStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.loginBg },
 
-  celebrate: { paddingHorizontal: 22, paddingBottom: 30, paddingTop: 6 },
+  celebrate: { paddingHorizontal: 22, paddingBottom: 20, paddingTop: 6 },
   trophyWrap: { alignItems: 'center', marginTop: 14 },
   trophyGlow: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(245,166,35,0.2)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.purpleSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    fontWeight: '400',
+    color: COLORS.gray,
     marginTop: 10,
   },
-  celebrateTitle: { fontSize: 24, fontWeight: '800', color: COLORS.white, marginTop: 4, letterSpacing: -0.3 },
-  celebrateSub: { fontSize: 13, color: 'rgba(255,255,255,0.65)', fontWeight: '500', marginTop: 4, textAlign: 'center' },
+  celebrateTitle: { fontSize: 24, fontWeight: '700', color: COLORS.navy, marginTop: 4, letterSpacing: -0.3 },
 
-  body: { paddingHorizontal: 22, marginTop: -14 },
+  body: { paddingHorizontal: 22 },
 
   scoreCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 22,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 18,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
   },
   scoreStarsBlock: { alignItems: 'center' },
-  scoreFrac: { fontSize: 14.5, fontWeight: '800', color: COLORS.navy, marginTop: 10 },
+  scoreFrac: { fontSize: 14.5, fontWeight: '700', color: COLORS.navy, marginTop: 10 },
   scorePctLabel: { fontSize: 11, color: COLORS.grayLight, fontWeight: '700', marginTop: 2 },
   scoreDivider: { width: 1, alignSelf: 'stretch', backgroundColor: COLORS.grayBorder },
   scoreSide: { flex: 1, gap: 12 },
   scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   scoreDot: { width: 8, height: 8, borderRadius: 4 },
-  scoreVal: { fontSize: 14, fontWeight: '800', color: COLORS.navy },
+  scoreVal: { fontSize: 14, fontWeight: '700', color: COLORS.navy },
 
   statGrid: { flexDirection: 'row', gap: 12, marginTop: 14 },
-  statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 2, padding: 15 },
-  statIcon: { width: 32, height: 32, borderRadius: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  statVal: { fontSize: 17, fontWeight: '800', color: COLORS.navy, letterSpacing: -0.2 },
+  statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 8, padding: 15, borderWidth: 1, borderColor: COLORS.grayBorder },
+  statIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  statVal: { fontSize: 17, fontWeight: '700', color: COLORS.navy, letterSpacing: -0.2 },
   statLabel: { fontSize: 11, color: COLORS.gray, marginTop: 2, fontWeight: '500' },
 
   bonusCard: {
@@ -623,23 +626,23 @@ const completeStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
-    backgroundColor: COLORS.goldSoft,
+    backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor: '#FBE7BE',
-    borderRadius: 2,
+    borderColor: COLORS.grayBorder,
+    borderRadius: 8,
     padding: 15,
   },
   bonusIcon: {
     width: 38,
     height: 38,
-    borderRadius: 2,
-    backgroundColor: COLORS.white,
+    borderRadius: 8,
+    backgroundColor: COLORS.purpleSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bonusTitle: { fontSize: 13.5, fontWeight: '800', color: COLORS.navy },
+  bonusTitle: { fontSize: 13.5, fontWeight: '700', color: COLORS.navy },
   bonusSub: { fontSize: 11.5, color: COLORS.gray, marginTop: 1, fontWeight: '500' },
-  bonusXp: { fontSize: 13, fontWeight: '800', color: COLORS.goldDeep },
+  bonusXp: { fontSize: 13, fontWeight: '700', color: COLORS.goldDeep },
 
   unlockCard: {
     marginTop: 14,
@@ -647,35 +650,39 @@ const completeStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 13,
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderRadius: 8,
     padding: 15,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
   },
   unlockBadge: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.purple,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  unlockTitle: { fontSize: 13.5, fontWeight: '800', color: COLORS.navy },
+  unlockTitle: { fontSize: 13.5, fontWeight: '700', color: COLORS.navy },
   unlockSub: { fontSize: 11.5, color: COLORS.gray, marginTop: 1, fontWeight: '500' },
 
-  actions: { paddingHorizontal: 22, paddingTop: 16, paddingBottom: 20 },
+  actions: { paddingHorizontal: 22, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.grayBorder },
   btnPrimary: {
     backgroundColor: COLORS.purple700,
-    borderRadius: 2,
+    borderRadius: 8,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  btnPrimaryText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
+  btnPrimaryText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
   btnSecondary: {
-    marginTop: 11,
+    marginTop: 10,
     backgroundColor: COLORS.white,
-    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
+    borderRadius: 8,
     paddingVertical: 15,
     alignItems: 'center',
   },

@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { Pressable } from '@/components/ui/pressable';
 
 import { Toast, type ToastData } from '../toast';
 import { COLORS } from './colors';
@@ -49,81 +50,83 @@ export function WelcomeBackScreen({
         style={styles.flex}
         behavior={Platform.select({ ios: 'padding', default: 'height' })}
         keyboardVerticalOffset={Platform.select({ ios: 0, default: 0 })}>
-        <SafeAreaView style={styles.loginSafeArea}>
-          <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
+        <ScrollView
+          contentContainerStyle={styles.loginScrollContent}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          <SafeAreaView style={styles.loginSafeArea}>
+            <Animated.View entering={FadeIn.duration(400)} style={styles.loginHero}>
 
-            <Image
-              style={{ width: heroSize, height: heroSize, alignSelf: 'center' }}
-              source={require('../../../assets/images/logo.png')}
-              contentFit="contain"
-            />
-          </Animated.View>
+              <Image
+                style={{ width: heroSize, height: heroSize, alignSelf: 'center' }}
+                source={require('../../../assets/images/logo.png')}
+                contentFit="contain"
+              />
+            </Animated.View>
 
-          <Animated.View entering={FadeInUp.duration(400)} style={styles.content}>
-            <Text style={styles.loginWelcome}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Login to continue your UPSC journey</Text>
+            <Animated.View entering={FadeInUp.duration(400)} style={styles.content}>
+              <Text style={styles.loginWelcome}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Login to continue your UPSC journey</Text>
 
-            <View style={[styles.inputGroup, { marginTop: isCompact ? 16 : 40 }]}>
-              <Text style={styles.fieldLabel}>Mobile Number</Text>
-              <View style={styles.inputRow}>
-                <Text style={styles.countryCode}>+91</Text>
-                <Ionicons name="chevron-down" size={14} color={COLORS.grayLight} />
-                <View style={styles.inputDivider} />
-                <Ionicons name="call-outline" size={18} color={COLORS.purple} style={styles.inputLeadingIcon} />
-                <TextInput
-                  value={phone}
-                  onChangeText={onPhoneChange}
-                  placeholder="Enter your mobile number"
-                  placeholderTextColor={COLORS.grayLight}
-                  keyboardType="phone-pad"
-                  autoFocus
-                  style={styles.inputField}
-                />
+              <View style={[styles.inputGroup, { marginTop: isCompact ? 16 : 40 }]}>
+                <Text style={styles.fieldLabel}>Mobile Number</Text>
+                <View style={styles.inputRow}>
+                  <Text style={styles.countryCode}>+91</Text>
+                  <Ionicons name="chevron-down" size={14} color={COLORS.grayLight} />
+                  <View style={styles.inputDivider} />
+                  <Ionicons name="call-outline" size={18} color={COLORS.purple} style={styles.inputLeadingIcon} />
+                  <TextInput
+                    value={phone}
+                    onChangeText={onPhoneChange}
+                    placeholder="Enter your mobile number"
+                    placeholderTextColor={COLORS.grayLight}
+                    keyboardType="phone-pad"
+                    autoFocus
+                    style={styles.inputField}
+                  />
+                </View>
               </View>
-            </View>
 
-            <View style={styles.inputGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Password</Text>
-                <Pressable onPress={onForgotPassword} hitSlop={8}>
-                  <Text style={styles.forgotPassword}>Forgot Password?</Text>
-                </Pressable>
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.fieldLabel}>Password</Text>
+                  <Pressable onPress={onForgotPassword} hitSlop={8}>
+                    <Text style={styles.forgotPassword}>Forgot Password?</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.inputRow}>
+                  <Ionicons name="lock-closed-outline" size={18} color={COLORS.purple} style={[styles.inputLeadingIcon, { marginLeft: 14 }]} />
+                  <TextInput
+                    value={password}
+                    onChangeText={onPasswordChange}
+                    placeholder="Enter your password"
+                    placeholderTextColor={COLORS.grayLight}
+                    secureTextEntry={!showPassword}
+                    style={styles.inputField}
+                  />
+                  <Pressable onPress={onToggleShowPassword} hitSlop={12} style={styles.eyeBtn}>
+                    <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.grayLight} />
+                  </Pressable>
+                </View>
               </View>
-              <View style={styles.inputRow}>
-                <Ionicons name="lock-closed-outline" size={18} color={COLORS.purple} style={[styles.inputLeadingIcon, { marginLeft: 14 }]} />
-                <TextInput
-                  value={password}
-                  onChangeText={onPasswordChange}
-                  placeholder="Enter your password"
-                  placeholderTextColor={COLORS.grayLight}
-                  secureTextEntry={!showPassword}
-                  style={styles.inputField}
-                />
-                <Pressable onPress={onToggleShowPassword} hitSlop={12} style={styles.eyeBtn}>
-                  <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={COLORS.grayLight} />
-                </Pressable>
-              </View>
-            </View>
 
-            <Pressable onPress={onLogin} disabled={submitting} style={({ pressed }) => [{ marginTop: isCompact ? 20 : 32 }, pressed && styles.buttonPressed]}>
-              <LinearGradient
-                colors={[COLORS.purple, COLORS.purpleDark]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.purpleButton, { marginTop: isCompact ? 16 : 28 }]}>
-                <Text style={styles.purpleButtonText}>{submitting ? 'Logging in…' : 'Login'}</Text>
-                {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
-              </LinearGradient>
-            </Pressable>
-
-            <View style={[styles.signUpRow, isCompact && { marginTop: 20, paddingBottom: 8 }]}>
-              <Text style={styles.signUpLabel}>Don&apos;t have an account? </Text>
-              <Pressable onPress={onGoToSignUp}>
-                <Text style={styles.signUpLink}>Sign Up</Text>
+              <Pressable onPress={onLogin} disabled={submitting} style={({ pressed }) => [{ marginTop: isCompact ? 20 : 32 }, pressed && styles.buttonPressed]}>
+                <View style={[styles.purpleButton, { marginTop: isCompact ? 16 : 28 }, { backgroundColor: COLORS.purple }]}>
+                  <Text style={styles.purpleButtonText}>{submitting ? 'Logging in…' : 'Login'}</Text>
+                  {/* <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 10 }} /> */}
+                </View>
               </Pressable>
-            </View>
-          </Animated.View>
-        </SafeAreaView>
+
+              <View style={[styles.signUpRow, isCompact && { marginTop: 20, paddingBottom: 8 }]}>
+                <Text style={styles.signUpLabel}>Don&apos;t have an account? </Text>
+                <Pressable onPress={onGoToSignUp}>
+                  <Text style={styles.signUpLink}>Sign Up</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </SafeAreaView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
